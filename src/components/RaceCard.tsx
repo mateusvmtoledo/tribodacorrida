@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Tag } from 'lucide-react';
+import { Calendar, MapPin, Tag, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Race, raceTypes } from '@/lib/races-data';
@@ -32,11 +32,11 @@ const RaceCard = ({ race }: RaceCardProps) => {
     <div className="race-card">
       <div className="relative h-48 overflow-hidden">
         <img
-          src={race.image}
+          src={race.customImage || race.image}
           alt={race.name}
           className="w-full h-full object-cover"
         />
-        <div className="absolute top-3 left-3 flex gap-2">
+        <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
           <Badge className="bg-primary text-primary-foreground">
             {raceTypeLabel}
           </Badge>
@@ -46,11 +46,19 @@ const RaceCard = ({ race }: RaceCardProps) => {
             </Badge>
           )}
         </div>
-        {race.isFree && (
-          <Badge className="absolute top-3 right-3 bg-green-500 text-white">
-            Gratuito
-          </Badge>
-        )}
+        <div className="absolute top-3 right-3 flex flex-col gap-2">
+          {race.isFree && (
+            <Badge className="bg-green-500 text-white">
+              Gratuito
+            </Badge>
+          )}
+          {race.hasCoupon && (
+            <Badge className="bg-secondary text-secondary-foreground animate-pulse">
+              <Ticket className="h-3 w-3 mr-1" />
+              Cupom
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="p-5">

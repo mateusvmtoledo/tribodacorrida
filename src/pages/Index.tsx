@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import heroImage from '@/assets/hero-running.jpg';
 import SearchBox from '@/components/SearchBox';
 import RaceCard from '@/components/RaceCard';
+import PartnersSlider from '@/components/PartnersSlider';
 import { Button } from '@/components/ui/button';
-import { mockRaces } from '@/lib/races-data';
+import { mockRaces, racesWithCoupons } from '@/lib/races-data';
 
 const Index = () => {
-  const featuredRaces = mockRaces.slice(0, 4);
+  // Mostra corridas com cupom primeiro, depois outras
+  const featuredRaces = [...racesWithCoupons.slice(0, 2), ...mockRaces.filter(r => !r.hasCoupon).slice(0, 2)];
 
   return (
     <main>
@@ -94,6 +96,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Partners Slider */}
+      <PartnersSlider />
 
       {/* CTA Section */}
       <section className="py-20 bg-primary">
