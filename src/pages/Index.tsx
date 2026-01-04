@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ArrowRight, Users, Calendar, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import heroImage from '@/assets/hero-running.jpg';
@@ -5,11 +6,14 @@ import SearchBox from '@/components/SearchBox';
 import RaceCard from '@/components/RaceCard';
 import PartnersSlider from '@/components/PartnersSlider';
 import { Button } from '@/components/ui/button';
-import { mockRaces, racesWithCoupons } from '@/lib/races-data';
+import { upcomingRaces } from '@/lib/races-data';
 
 const Index = () => {
-  // Mostra corridas com cupom primeiro, depois outras
-  const featuredRaces = [...racesWithCoupons.slice(0, 2), ...mockRaces.filter(r => !r.hasCoupon).slice(0, 2)];
+  const featuredRaces = useMemo(() => {
+    const shuffled = [...upcomingRaces];
+    shuffled.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 12);
+  }, []);
 
   return (
     <main>
@@ -33,7 +37,6 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Search Box */}
           <div className="mt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <SearchBox />
           </div>
@@ -78,12 +81,13 @@ const Index = () => {
                 Corridas em <span className="gradient-text">Destaque</span>
               </h2>
               <p className="text-muted-foreground">
-                Confira os eventos mais procurados do momento
+                Confira uma seleção especial de eventos para você
               </p>
             </div>
-            <Link to="/resultados">
+            {/* LINK ATUALIZADO PARA /corridas */}
+            <Link to="/corridas">
               <Button variant="outline" className="mt-4 md:mt-0">
-                Ver todas
+                Ver todas as corridas
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -94,13 +98,19 @@ const Index = () => {
               <RaceCard key={race.id} race={race} />
             ))}
           </div>
+          
+          <div className="mt-8 text-center md:hidden">
+            <Link to="/corridas">
+              <Button variant="secondary" size="lg" className="w-full">
+                Ver mais eventos
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Partners Slider */}
       <PartnersSlider />
 
-      {/* CTA Section */}
       <section className="py-20 bg-primary">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-6">

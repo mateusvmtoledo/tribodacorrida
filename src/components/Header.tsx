@@ -8,12 +8,12 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
-const navLinks = [
-    { name: 'Início', path: '/' },
-    { name: 'Corridas', path: '/resultados' }, // Página de busca/calendário
-    { name: 'Resultados', path: '/historico' }, // Nova página de eventos passados
-    { name: 'Cadastrar Corrida', path: '/cadastrar' },
-    { name: 'Contato', path: '/contato' },
+  const navLinks = [
+    { label: 'Início', to: '/' },
+    { label: 'Corridas', to: '/corridas' }, // SEO friendly
+    { label: 'Resultados', to: '/resultados' }, // SEO friendly (antigo Histórico)
+    { label: 'Cadastrar Corrida', to: '/cadastrar' },
+    { label: 'Contato', to: '/contato' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

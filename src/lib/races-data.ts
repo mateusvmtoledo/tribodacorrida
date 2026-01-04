@@ -28,6 +28,9 @@ export interface Race {
   link?: string;
   coupons?: Coupon[];
   hasCoupon?: boolean;
+  // Novos campos para Resultados
+  photosLink?: string;
+  hasResults?: boolean; // Controle do Admin
 }
 
 export const raceTypes: { value: RaceType; label: string }[] = [
@@ -117,14 +120,11 @@ export const citiesByState: Record<string, string[]> = {
   TO: ['Palmas', 'Araguaína', 'Gurupi'],
 };
 
-// Função para decodificar URL encoded strings
 function decodeUrlString(str: string): string {
   try {
-    // Primeiro tenta decodificar caracteres especiais do formato %XX
     let decoded = str.replace(/%([0-9A-Fa-f]{2})/g, (_, hex) => 
       String.fromCharCode(parseInt(hex, 16))
     );
-    // Trata encoding Latin-1 para UTF-8
     decoded = decoded
       .replace(/ã/g, 'ã').replace(/á/g, 'á').replace(/â/g, 'â').replace(/à/g, 'à')
       .replace(/é/g, 'é').replace(/ê/g, 'ê').replace(/í/g, 'í').replace(/ó/g, 'ó')
@@ -141,27 +141,22 @@ function decodeUrlString(str: string): string {
   }
 }
 
-// Função para extrair nome da corrida do link URL encoded
 function extractRaceName(link: string): string {
   if (!link) return '';
   try {
-    // Busca o nome após o último & no link
     const match = link.match(/&([^&]+)$/);
     if (match) {
       return decodeUrlString(match[1]);
     }
-    // Fallback: tenta extrair do escolha=XXXXX
     const escolhaMatch = link.match(/escolha=(\d+)/);
     if (escolhaMatch) {
       return `Corrida ${escolhaMatch[1]}`;
     }
   } catch {
-    // fallback silencioso
   }
   return '';
 }
 
-// Função para determinar tipo baseado no nome e distância
 function determineRaceType(name: string, distance: string): RaceType {
   const nameLower = name.toLowerCase();
   const distLower = distance.toLowerCase();
@@ -173,14 +168,12 @@ function determineRaceType(name: string, distance: string): RaceType {
   if (nameLower.includes('triathlon') || nameLower.includes('triatlo')) return 'triathlon';
   if (nameLower.includes('híbrida') || nameLower.includes('hibrida')) return 'hibrida';
   
-  // Verifica se é ultra pela distância
   const distNum = parseInt(distance);
   if (distNum >= 42) return 'ultramaratona';
   
   return 'rua';
 }
 
-// Função para converter data DD/MM/YYYY para YYYY-MM-DD
 function parseDate(dateStr: string): string {
   if (!dateStr || dateStr.trim() === '') return '2026-01-01';
   
@@ -194,12 +187,10 @@ function parseDate(dateStr: string): string {
   return '2026-01-01';
 }
 
-// Função para gerar preço consistente baseado no hash
 function generatePrice(seed: string, distance: string): number {
   const hash = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const distLower = distance.toLowerCase();
   
-  // Preços base por distância
   let basePrice = 80;
   if (distLower.includes('21') || distLower.includes('meia')) basePrice = 150;
   else if (distLower.includes('42') || distLower.includes('maratona')) basePrice = 250;
@@ -208,12 +199,10 @@ function generatePrice(seed: string, distance: string): number {
   else if (distLower.includes('5') || distLower.includes('3')) basePrice = 70;
   else if (distLower.includes('45') || distLower.includes('35')) basePrice = 280;
   
-  // Variação de ±30%
   const variation = (hash % 60 - 30) / 100;
   return Math.round(basePrice * (1 + variation));
 }
 
-// Gerar descrição baseada no tipo de corrida
 function generateDescription(name: string, type: RaceType, city: string, state: string): string {
   const typeDescriptions: Record<RaceType, string[]> = {
     rua: [
@@ -254,16 +243,14 @@ function generateDescription(name: string, type: RaceType, city: string, state: 
   return descriptions[hash % descriptions.length];
 }
 
-// Parse do CSV para gerar corridas
 function parseCSVToRaces(): Race[] {
-  const lines = racesCSV.split('\n').slice(1); // Pula header
+  const lines = racesCSV.split('\n').slice(1); 
   const races: Race[] = [];
   let idCounter = 1;
   
   for (const line of lines) {
     if (!line.trim()) continue;
     
-    // Parse CSV respeitando vírgulas dentro de campos
     const parts: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -281,7 +268,7 @@ function parseCSVToRaces(): Race[] {
     parts.push(current.trim());
     
     const state = parts[0]?.trim().toUpperCase() || 'SP';
-    if (!states.includes(state)) continue; // Skip invalid states
+    if (!states.includes(state)) continue;
     
     const csvName = parts[1]?.trim() || '';
     const dateStr = parts[2]?.trim() || '';
@@ -290,10 +277,8 @@ function parseCSVToRaces(): Race[] {
     const organizer = parts[5]?.trim() || 'Organizador Local';
     const link = parts[6]?.trim() || '';
     
-    // Extrai nome do link se não tiver nome no CSV
     const finalName = csvName || extractRaceName(link) || `Corrida ${state} #${idCounter}`;
     
-    // Skip entries sem nome válido
     if (finalName.length < 3) continue;
     
     const id = `race-${state.toLowerCase()}-${idCounter}`;
@@ -301,13 +286,16 @@ function parseCSVToRaces(): Race[] {
     const date = parseDate(dateStr);
     const price = generatePrice(id + finalName, distance);
     
-    // ~15% das corridas têm cupom
     const hash = (id + finalName).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const hasCoupon = hash % 7 === 0;
-    
-    // ~3% das corridas são gratuitas
     const isFree = hash % 33 === 0;
     
+    // Simulação para o "hasResults" e "photosLink"
+    // Vamos supor que 90% das provas têm resultados
+    const hasResults = hash % 10 !== 0; 
+    // Vamos supor que 30% das provas têm fotos no Fotop (mock)
+    const hasPhotos = hash % 3 === 0;
+
     const race: Race = {
       id,
       name: finalName,
@@ -330,6 +318,9 @@ function parseCSVToRaces(): Race[] {
         discount: 10 + (hash % 20),
         description: `Desconto especial Tribo da Corrida`
       }] : undefined,
+      // Novos campos preenchidos
+      hasResults: hasResults,
+      photosLink: hasPhotos ? 'https://fotop.com.br' : undefined,
     };
     
     races.push(race);
@@ -339,28 +330,20 @@ function parseCSVToRaces(): Race[] {
   return races;
 }
 
-// Exporta as corridas processadas do CSV
 export const mockRaces: Race[] = parseCSVToRaces();
-
-// Corridas com cupons
 export const racesWithCoupons = mockRaces.filter(race => race.hasCoupon);
-
-// Corridas gratuitas
 export const freeRaces = mockRaces.filter(race => race.isFree);
 
-// Próximas corridas (ordenadas por data)
 export const upcomingRaces = [...mockRaces]
   .filter(race => new Date(race.date) >= new Date())
   .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-// Corridas por estado
 export const racesByState = mockRaces.reduce((acc, race) => {
   if (!acc[race.state]) acc[race.state] = [];
   acc[race.state].push(race);
   return acc;
 }, {} as Record<string, Race[]>);
 
-// Estatísticas
 export const raceStats = {
   total: mockRaces.length,
   byType: mockRaces.reduce((acc, race) => {
@@ -375,15 +358,13 @@ export const raceStats = {
   free: freeRaces.length,
 };
 
-
-// Corridas passadas (Data anterior a hoje)
 export const pastRaces = mockRaces
   .filter(race => {
     const raceDate = new Date(race.date);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Zera hora para comparar apenas datas
+    today.setHours(0, 0, 0, 0); 
     return raceDate < today;
   })
-  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Ordena da mais recente para a mais antiga
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 console.log(`✅ Carregadas ${mockRaces.length} corridas de 2026`);

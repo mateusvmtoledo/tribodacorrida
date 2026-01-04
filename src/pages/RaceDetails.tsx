@@ -13,10 +13,11 @@ const RaceDetails = () => {
       <main className="pt-24 pb-16 min-h-screen">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Corrida não encontrada</h1>
-          <Link to="/resultados">
+          {/* LINK ATUALIZADO */}
+          <Link to="/corridas">
             <Button variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar para resultados
+              Voltar para corridas
             </Button>
           </Link>
         </div>
@@ -47,9 +48,10 @@ const RaceDetails = () => {
   return (
     <main className="pt-24 pb-16 min-h-screen">
       <div className="container mx-auto px-4">
-        <Link to="/resultados" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">
+        {/* LINK ATUALIZADO */}
+        <Link to="/corridas" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para resultados
+          Voltar para corridas
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -139,22 +141,22 @@ const RaceDetails = () => {
                 )}
               </div>
 
-{race.link ? (
-  <a 
-    href={race.link} 
-    target="_blank" 
-    rel="noopener noreferrer" 
-    className="w-full block mb-4"
-  >
-    <Button className="w-full btn-gradient" size="lg">
-      Inscrever-se agora
-    </Button>
-  </a>
-) : (
-  <Button className="w-full btn-gradient mb-4" size="lg" disabled>
-    Inscrições indisponíveis
-  </Button>
-)}
+              {race.link ? (
+                <a 
+                  href={race.link} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-full block mb-4"
+                >
+                  <Button className="w-full btn-gradient" size="lg">
+                    Inscrever-se agora
+                  </Button>
+                </a>
+              ) : (
+                <Button className="w-full btn-gradient mb-4" size="lg" disabled>
+                  Inscrições indisponíveis
+                </Button>
+              )}
 
               <p className="text-center text-sm text-muted-foreground">
                 Vagas limitadas. Garanta já a sua!

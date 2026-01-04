@@ -9,7 +9,6 @@ const ITEMS_PER_PAGE = 9;
 const EventosPassados = () => {
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Lógica de Paginação
   const totalPages = Math.ceil(pastRaces.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentRaces = pastRaces.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -24,7 +23,7 @@ const EventosPassados = () => {
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Resultados e Histórico</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Confira as corridas que já foram realizadas pela Tribo. 
-            Veja detalhes dos eventos anteriores.
+            Veja fotos e resultados dos eventos anteriores.
           </p>
         </div>
 
@@ -33,11 +32,8 @@ const EventosPassados = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {currentRaces.map((race) => (
                 <div key={race.id} className="opacity-90 hover:opacity-100 transition-opacity">
-                   {/* DICA: Aqui usamos o mesmo Card. 
-                      Idealmente, o RaceCard poderia ter uma prop "isPast" 
-                      para mudar o botão de "Inscrever-se" para "Ver Detalhes" 
-                   */}
-                  <RaceCard race={race} />
+                   {/* Aqui ativamos o modo "Passado" do Card */}
+                  <RaceCard race={race} isPast={true} />
                 </div>
               ))}
             </div>
@@ -90,7 +86,7 @@ const EventosPassados = () => {
             <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2">Nenhum evento passado</h3>
             <p className="text-muted-foreground">
-              Ainda não temos histórico de corridas realizadas em 2026.
+              Ainda não temos histórico de corridas realizadas.
             </p>
           </div>
         )}
