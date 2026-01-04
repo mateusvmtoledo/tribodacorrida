@@ -1,374 +1,299 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, CheckCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { MapPin, Link as LinkIcon, User, Mail, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { raceTypes, distances, states, citiesByState } from '@/lib/races-data';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from '@/hooks/use-toast';
+import { createRaceInDb } from '@/services/raceService';
+import { initCatalyst } from '@/lib/catalyst';
 
-interface Coupon {
-  id: string;
-  code: string;
-  discount: string;
-}
+const DISTANCES_OPTIONS = [
+  { id: "3k", label: "3 km" },
+  { id: "5k", label: "5 km" },
+  { id: "10k", label: "10 km" },
+  { id: "15k", label: "15 km" },
+  { id: "21k", label: "Meia Maratona (21k)" },
+  { id: "42k", label: "Maratona (42k)" },
+  { id: "ultra", label: "Ultramaratona" },
+  { id: "caminhada", label: "Caminhada" },
+];
+
+const formSchema = z.object({
+  eventName: z.string().min(3, "Nome muito curto"),
+  dateRun: z.string().refine((val) => !isNaN(Date.parse(val)), "Data inválida"),
+  city: z.string().min(2, "Cidade obrigatória"),
+  state: z.string().length(2, "Use sigla (ex: SP)"),
+  organizer: z.string().min(2, "Organizador obrigatório"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal('')),
+  // ATENÇÃO: Link agora é obrigatório conforme seu Schema do banco
+  link: z.string().url("Link inválido (deve começar com http:// ou https://)"),
+  description: z.string().min(10, "Descreva o evento (mínimo 10 caracteres)"),
+  distances: z.array(z.string()).refine((value) => value.length > 0, {
+    message: "Selecione pelo menos uma distância.",
+  }),
+});
 
 const Cadastrar = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    type: '',
-    distance: '',
-    date: '',
-    state: '',
-    city: '',
-    location: '',
-    organizer: '',
-    description: '',
-    price: '',
-    imageUrl: '',
-    isFree: false,
+  const navigate = useNavigate();
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      eventName: "",
+      dateRun: "",
+      city: "",
+      state: "",
+      organizer: "",
+      email: "",
+      link: "",
+      description: "",
+      distances: [],
+    },
   });
 
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [newCoupon, setNewCoupon] = useState({ code: '', discount: '' });
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      initCatalyst(); 
 
-  const showDistance = ['rua', 'trilha', 'hibrida', 'ultramaratona'].includes(formData.type);
-  const cities = formData.state && citiesByState[formData.state] ? citiesByState[formData.state] : [];
+      // Converte array ["5k", "10k"] para string "5k, 10k"
+      const distanceString = values.distances.join(', ');
 
-  const handleChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    
-    // Reset city when state changes
-    if (field === 'state') {
-      setFormData((prev) => ({ ...prev, city: '' }));
-    }
-    
-    // Reset price if free
-    if (field === 'isFree' && value === true) {
-      setFormData((prev) => ({ ...prev, price: '0' }));
-    }
-  };
-
-  const addCoupon = () => {
-    if (newCoupon.code && newCoupon.discount) {
-      setCoupons((prev) => [
-        ...prev,
-        { id: Date.now().toString(), ...newCoupon },
-      ]);
-      setNewCoupon({ code: '', discount: '' });
-    }
-  };
-
-  const removeCoupon = (id: string) => {
-    setCoupons((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validação básica
-    if (!formData.name || !formData.type || !formData.date || !formData.state || !formData.city) {
-      toast({
-        title: 'Campos obrigatórios',
-        description: 'Por favor, preencha todos os campos obrigatórios.',
-        variant: 'destructive',
+      await createRaceInDb({
+        name: values.eventName,
+        date: values.dateRun, // Vai para a coluna dateRun
+        city: values.city,
+        state: values.state.toUpperCase(),
+        organizer: values.organizer,
+        description: values.description,
+        link: values.link,
+        distance: distanceString,
+        isFree: false,
       });
-      return;
+
+      setIsSubmitted(true);
+      toast({ title: "Sucesso!", description: "Evento cadastrado no Catalyst." });
+      
+      // Espera 3s e volta para Home
+      setTimeout(() => navigate('/'), 3000);
+
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Verifique se você preencheu o Link (obrigatório) e a conexão.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    // Simular envio
-    toast({
-      title: 'Corrida cadastrada com sucesso!',
-      description: 'Sua corrida foi enviada para aprovação e em breve estará disponível.',
-    });
-
-    // Redirecionar para resultados
-    setTimeout(() => {
-      navigate('/resultados');
-    }, 2000);
-  };
+  if (isSubmitted) {
+    return (
+      <main className="pt-32 pb-20 min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-lg mx-auto p-6">
+          <CheckCircle className="h-20 w-20 text-green-500 mx-auto mb-4 animate-bounce" />
+          <h2 className="text-3xl font-bold mb-4">Cadastro Enviado!</h2>
+          <Button onClick={() => navigate('/')} variant="outline">Voltar</Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="pt-24 pb-16 min-h-screen">
+    <main className="pt-24 pb-16 min-h-screen bg-secondary/5">
       <div className="container mx-auto px-4 max-w-3xl">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Cadastrar <span className="gradient-text">Corrida</span>
-          </h1>
-          <p className="text-muted-foreground">
-            Preencha os dados do seu evento para que corredores de todo o Brasil possam encontrá-lo
-          </p>
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold mb-4">Cadastrar Corrida</h1>
+          <p className="text-muted-foreground">Preencha os dados oficiais do evento.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Informações Básicas */}
-          <div className="glass-card rounded-2xl p-6 md:p-8">
-            <h2 className="text-xl font-bold mb-6">Informações do Evento</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <Label htmlFor="name">Nome da Corrida *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  placeholder="Ex: Maratona de São Paulo 2025"
-                  className="mt-2"
+        <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="eventName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Evento</FormLabel>
+                      <FormControl><Input placeholder="Ex: Corrida de Verão" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dateRun"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data (Dia do Evento)</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              <div>
-                <Label htmlFor="type">Tipo de Corrida *</Label>
-                <Select value={formData.type} onValueChange={(v) => handleChange('type', v)}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {raceTypes.map((rt) => (
-                      <SelectItem key={rt.value} value={rt.value}>
-                        {rt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className={!showDistance ? 'opacity-50' : ''}>
-                <Label htmlFor="distance">Distância</Label>
-                <Select
-                  value={formData.distance}
-                  onValueChange={(v) => handleChange('distance', v)}
-                  disabled={!showDistance}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Selecione a distância" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {distances.map((d) => (
-                      <SelectItem key={d.value} value={d.value}>
-                        {d.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="date">Data do Evento *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => handleChange('date', e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="organizer">Organizador</Label>
-                <Input
-                  id="organizer"
-                  value={formData.organizer}
-                  onChange={(e) => handleChange('organizer', e.target.value)}
-                  placeholder="Nome do organizador"
-                  className="mt-2"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Localização */}
-          <div className="glass-card rounded-2xl p-6 md:p-8">
-            <h2 className="text-xl font-bold mb-6">Localização</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="state">Estado *</Label>
-                <Select value={formData.state} onValueChange={(v) => handleChange('state', v)}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Selecione o estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {states.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="city">Cidade *</Label>
-                <Select
-                  value={formData.city}
-                  onValueChange={(v) => handleChange('city', v)}
-                  disabled={cities.length === 0}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Selecione a cidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="md:col-span-2">
-                <Label htmlFor="location">Local de Largada</Label>
-                <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => handleChange('location', e.target.value)}
-                  placeholder="Ex: Av. Paulista, 1000"
-                  className="mt-2"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Valor e Cupons */}
-          <div className="glass-card rounded-2xl p-6 md:p-8">
-            <h2 className="text-xl font-bold mb-6">Valor e Cupons</h2>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="isFree" className="text-base">Evento Gratuito</Label>
-                  <p className="text-sm text-muted-foreground">Marque se o evento for gratuito</p>
-                </div>
-                <Switch
-                  id="isFree"
-                  checked={formData.isFree}
-                  onCheckedChange={(v) => handleChange('isFree', v)}
-                />
-              </div>
-
-              {!formData.isFree && (
-                <div className="max-w-xs">
-                  <Label htmlFor="price">Valor da Inscrição (R$)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => handleChange('price', e.target.value)}
-                    placeholder="0,00"
-                    className="mt-2"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              )}
-
-              {/* Cupons */}
-              <div className="pt-4 border-t border-border">
-                <h3 className="font-semibold mb-4">Cupons de Desconto</h3>
-                
-                {coupons.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {coupons.map((coupon) => (
-                      <div
-                        key={coupon.id}
-                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                      >
-                        <div>
-                          <span className="font-mono font-semibold">{coupon.code}</span>
-                          <span className="text-muted-foreground ml-2">- {coupon.discount}% OFF</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cidade</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input className="pl-9" {...field} />
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeCoupon(coupon.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado</FormLabel>
+                      <FormControl>
+                        <Input maxLength={2} placeholder="SP" {...field} onChange={e => field.onChange(e.target.value.toUpperCase())} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="distances"
+                render={() => (
+                  <FormItem>
+                    <div className="mb-4">
+                      <FormLabel>Distâncias</FormLabel>
+                      <FormDescription>Selecione as modalidades.</FormDescription>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {DISTANCES_OPTIONS.map((item) => (
+                        <FormField
+                          key={item.id}
+                          control={form.control}
+                          name="distances"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={item.id}
+                                className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 bg-white hover:bg-gray-50 cursor-pointer"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item.id)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([...field.value, item.id])
+                                        : field.onChange(field.value?.filter((value) => value !== item.id))
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer w-full">
+                                  {item.label}
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
 
-                <div className="flex gap-2">
-                  <Input
-                    value={newCoupon.code}
-                    onChange={(e) => setNewCoupon((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                    placeholder="CODIGO"
-                    className="max-w-[150px] font-mono"
-                  />
-                  <Input
-                    type="number"
-                    value={newCoupon.discount}
-                    onChange={(e) => setNewCoupon((prev) => ({ ...prev, discount: e.target.value }))}
-                    placeholder="% desconto"
-                    className="max-w-[120px]"
-                    min="1"
-                    max="100"
-                  />
-                  <Button type="button" variant="outline" onClick={addCoupon}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Descrição */}
-          <div className="glass-card rounded-2xl p-6 md:p-8">
-            <h2 className="text-xl font-bold mb-6">Descrição</h2>
-            
-            <div className="space-y-6">
-              <div>
-                <Label htmlFor="description">Descrição do Evento</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  placeholder="Descreva seu evento, diferenciais, estrutura oferecida..."
-                  className="mt-2 min-h-[120px]"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="organizer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organizador</FormLabel>
+                      <FormControl>
+                         <div className="relative">
+                          <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input className="pl-9" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email (Opcional)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input className="pl-9" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              <div>
-                <Label htmlFor="imageUrl">URL da Imagem de Capa</Label>
-                <Input
-                  id="imageUrl"
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => handleChange('imageUrl', e.target.value)}
-                  placeholder="https://exemplo.com/imagem.jpg"
-                  className="mt-2"
+               <FormField
+                  control={form.control}
+                  name="link"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link de Inscrição <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <LinkIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input className="pl-9" placeholder="https://..." {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            </div>
-          </div>
 
-          {/* Submit */}
-          <div className="flex flex-col md:flex-row gap-4 justify-end">
-            <Button type="button" variant="outline" onClick={() => navigate('/')}>
-              Cancelar
-            </Button>
-            <Button type="submit" className="btn-gradient">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Cadastrar Corrida
-            </Button>
-          </div>
-        </form>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl><Textarea className="h-32" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" className="w-full btn-gradient font-bold text-lg h-12" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Enviar Cadastro'}
+              </Button>
+            </form>
+          </Form>
+        </div>
       </div>
     </main>
   );
