@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "28308000000011085",
+      "name": "tribodacorrida",
+      "domain": {
+        "id": "50037517394",
+        "name": "tribodacorrida-60062898942.development"
+      },
+      "timezone": "America/Sao_Paulo",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60062898942",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "client": {
+    "source": "dist",
+    "ignore": [],
+    "rewrites": [
+      {
+        "source": "/**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

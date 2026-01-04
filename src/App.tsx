@@ -12,6 +12,7 @@ import Cadastrar from "./pages/Cadastrar";
 import Contato from "./pages/Contato";
 import NotFound from "./pages/NotFound";
 import EventosPassados from "./pages/EventosPassados"; // Página de Passadas (agora /resultados)
+import TorreDeControle from "./pages/TorreDeControle"; // Novo Import para o Admin
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,10 @@ const App = () => (
               <Route path="/corrida/:id" element={<RaceDetails />} />
               <Route path="/cadastrar" element={<Cadastrar />} />
               <Route path="/contato" element={<Contato />} />
+
+              {/* Rota da Torre de Controle (Admin Oculto) */}
+              <Route path="/torredecontrole" element={<TorreDeControle />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

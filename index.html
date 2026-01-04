@@ -17,6 +17,16 @@
     <meta name="twitter:site" content="@TriboDaCorrida" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     <script src="https://static.zohocdn.com/catalyst/sdk/js/4.0.0/catalystWebSDK.js"></script>
+    <script>
+      var catalyst = catalyst || {};
+      catalyst.init = function() {
+          catalyst.sdk.init({
+              // Pegue estes números no Console do Catalyst > Settings > Developer Tools
+              projectId: "28308000000011085", 
+              zaid: "COLE_SEU_ZAID_AQUI"
+          });
+      };
+    </script>
   </head>
 
   <body>
