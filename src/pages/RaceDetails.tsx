@@ -139,9 +139,22 @@ const RaceDetails = () => {
                 )}
               </div>
 
-              <Button className="w-full btn-gradient mb-4" size="lg">
-                Inscrever-se agora
-              </Button>
+{race.link ? (
+  <a 
+    href={race.link} 
+    target="_blank" 
+    rel="noopener noreferrer" 
+    className="w-full block mb-4"
+  >
+    <Button className="w-full btn-gradient" size="lg">
+      Inscrever-se agora
+    </Button>
+  </a>
+) : (
+  <Button className="w-full btn-gradient mb-4" size="lg" disabled>
+    Inscrições indisponíveis
+  </Button>
+)}
 
               <p className="text-center text-sm text-muted-foreground">
                 Vagas limitadas. Garanta já a sua!
