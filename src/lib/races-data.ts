@@ -375,4 +375,15 @@ export const raceStats = {
   free: freeRaces.length,
 };
 
+
+// Corridas passadas (Data anterior a hoje)
+export const pastRaces = mockRaces
+  .filter(race => {
+    const raceDate = new Date(race.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Zera hora para comparar apenas datas
+    return raceDate < today;
+  })
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Ordena da mais recente para a mais antiga
+
 console.log(`✅ Carregadas ${mockRaces.length} corridas de 2026`);

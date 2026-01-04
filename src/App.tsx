@@ -11,6 +11,7 @@ import RaceDetails from "./pages/RaceDetails";
 import Cadastrar from "./pages/Cadastrar";
 import Contato from "./pages/Contato";
 import NotFound from "./pages/NotFound";
+import EventosPassados from "./pages/EventosPassados"; // <--- chama a página de resultados
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,8 @@ const App = () => (
               <Route path="/cadastrar" element={<Cadastrar />} />
               <Route path="/contato" element={<Contato />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/resultados" element={<Resultados />} />
+              <Route path="/historico" element={<EventosPassados />} /> {/* <--- Eventos Passados */}
             </Routes>
           </div>
           <Footer />
