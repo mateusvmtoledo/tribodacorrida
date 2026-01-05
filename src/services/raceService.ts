@@ -76,16 +76,50 @@ const getTable = async () => {
   const app = await initCatalyst();
 
   try {
-    // SDK 4.5.0: Acessa o datastore
+    console.log("🔍 [Table] Inspecionando app:", app);
+    console.log("🔍 [Table] Propriedades:", Object.keys(app));
+    console.log("🔍 [Table] app.table existe?", typeof app.table);
+    console.log("🔍 [Table] app.datastore existe?", typeof app.datastore);
+
     let table;
 
-    if (app.datastore && typeof app.datastore.table === 'function') {
-      console.log("🔧 [Table] Usando app.datastore.table()");
-      table = app.datastore.table(TABLE_IDENTIFIER);
-    } else if (typeof app.table === 'function') {
-      console.log("🔧 [Table] Usando app.table()");
-      table = app.table(TABLE_IDENTIFIER);
-    } else {
+    // SDK 4.5.0: Tenta acessar via getter 'table'
+    if (typeof app.table !== 'undefined') {
+      console.log("🔧 [Table] Acessando app.table (getter)...");
+      const tableAPI = app.table;
+      console.log("🔍 [Table] tableAPI:", tableAPI);
+      console.log("🔍 [Table] Tipo:", typeof tableAPI);
+      
+      // O getter retorna um objeto com métodos
+      if (tableAPI && typeof tableAPI === 'object') {
+        // Procura pelo método correto no tableAPI
+        if (typeof tableAPI.table === 'function') {
+          console.log("🔧 [Table] Usando tableAPI.table()");
+          table = tableAPI.table(TABLE_IDENTIFIER);
+        } else if (typeof tableAPI.getTable === 'function') {
+          console.log("🔧 [Table] Usando tableAPI.getTable()");
+          table = tableAPI.getTable(TABLE_IDENTIFIER);
+        } else if (typeof tableAPI.getInstance === 'function') {
+          console.log("🔧 [Table] Usando tableAPI.getInstance().getTable()");
+          const instance = tableAPI.getInstance();
+          table = instance.getTable(TABLE_IDENTIFIER);
+        } else {
+          console.log("🔍 [Table] Métodos disponíveis no tableAPI:", Object.keys(tableAPI));
+        }
+      }
+    } 
+    
+    // Fallback: tenta datastore
+    if (!table && app.datastore) {
+      console.log("🔧 [Table] Tentando app.datastore.table()");
+      if (typeof app.datastore.table === 'function') {
+        table = app.datastore.table(TABLE_IDENTIFIER);
+      }
+    }
+
+    if (!table) {
+      console.error("❌ [Table] TODAS as tentativas falharam!");
+      console.error("💡 [Table] Tente no console: window.catalystApp.table");
       throw new Error("Não encontrei um método para acessar a tabela");
     }
 
