@@ -4,152 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tribo da Corrida - Encontre sua próxima corrida</title>
-    <meta name="description" content="O maior portal de corridas do Brasil. Encontre eventos de rua, trilha, ultramaratonas, duathlon e triathlon perto de você!" />
-    <meta name="keywords" content="corrida, maratona, trilha, ultramaratona, duathlon, triathlon, eventos esportivos, Brasil" />
-    <meta name="author" content="Tribo da Corrida" />
-
-    <meta property="og:title" content="Tribo da Corrida - Encontre sua próxima corrida" />
-    <meta property="og:description" content="O maior portal de corridas do Brasil. Encontre eventos de rua, trilha, ultramaratonas e muito mais!" />
+    
+    <meta name="description" content="O maior portal de corridas do Brasil." />
+    <meta property="og:title" content="Tribo da Corrida" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@TriboDaCorrida" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <!-- 1️⃣ CARREGA O SDK DO CATALYST (v4.5.0) -->
     <script src="https://static.zohocdn.com/catalyst/sdk/js/4.5.0/catalystWebSDK.js"></script>
 
-    <!-- 2️⃣ INICIALIZAÇÃO ROBUSTA DO CATALYST -->
     <script>
       console.log("🔧 [HTML] Script de inicialização carregado");
       
-      // Credenciais do projeto (FORMATO CORRETO para SDK 4.5.0)
-      const CATALYST_CONFIG = {
-        project_id: "28308000000011085",  // ← underscore, não camelCase!
-        zaid: "50037517394"
-      };
-
-      // Aguarda o DOM estar pronto
       document.addEventListener('DOMContentLoaded', function() {
         console.log("📄 [HTML] DOM carregado");
-        console.log("🔍 [HTML] Verificando window.catalyst:", window.catalyst);
         
-        // ===== VERIFICAÇÃO INICIAL =====
-        if (!window.catalyst) {
-          console.error("❌ [HTML] ERRO CRÍTICO: SDK do Catalyst não carregado!");
-          console.error("💡 [HTML] Verifique:");
-          console.error("   1. Se o script está carregando (AdBlock pode bloquear)");
-          console.error("   2. Se a URL está correta");
-          console.error("   3. Se há erros de CORS");
+        var cat = window.catalyst;
+        
+        if (!cat) {
+          console.error("❌ [HTML] ERRO CRÍTICO: window.catalyst não existe!");
           return;
         }
         
-        console.log("✅ [HTML] window.catalyst encontrado:", window.catalyst);
-        console.log("🔍 [HTML] Propriedades disponíveis:", Object.keys(window.catalyst));
-        console.log("🔍 [HTML] Métodos do protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(window.catalyst)));
-
-        // ===== ESTRATÉGIA 1: SDK 4.5.0 MODERNO (initApp) =====
-        try {
-          console.log("🚀 [HTML] TENTATIVA 1: Usando initApp() [SDK 4.5.0]");
-          
-          if (typeof window.catalyst.initApp === 'function') {
-            // initApp() NÃO retorna nada, ele inicializa o próprio objeto
-            window.catalyst.initApp(CATALYST_CONFIG);
-            
-            console.log("✅ [HTML] initApp() executado com sucesso!");
-            
-            // Aguarda 300ms para o SDK ficar pronto
-            setTimeout(() => {
-              // O app É o próprio catalyst após a inicialização
-              window.catalystApp = window.catalyst;
-              window.catalystReady = true;
-              
-              console.log("📦 [HTML] Catalyst inicializado:", window.catalyst);
-              console.log("🎉 [HTML] SUCESSO! Catalyst pronto via initApp()");
-            }, 300);
-            
-            return; // Sucesso, sai da função
-            
-          } else {
-            console.warn("⚠️ [HTML] initApp() não existe, tentando próxima estratégia...");
-          }
-          
-        } catch (error) {
-          console.error("❌ [HTML] Erro ao usar initApp():", error);
-          console.log("🔄 [HTML] Tentando estratégia alternativa...");
-        }
-
-        // ===== ESTRATÉGIA 2: INICIALIZAÇÃO VIA AUTH =====
-        try {
-          console.log("🚀 [HTML] TENTATIVA 2: Usando auth.init()");
-          
-          if (window.catalyst.auth && typeof window.catalyst.auth.init === 'function') {
-            window.catalyst.auth.init(CATALYST_CONFIG);
-            
-            console.log("✅ [HTML] auth.init() executado!");
-            
-            window.catalystApp = window.catalyst;
-            window.catalystReady = true;
-            
-            console.log("🎉 [HTML] SUCESSO! Catalyst pronto via auth.init()");
-            return;
-            
-          } else {
-            console.warn("⚠️ [HTML] auth.init() não existe, tentando próxima estratégia...");
-          }
-          
-        } catch (error) {
-          console.error("❌ [HTML] Erro ao usar auth.init():", error);
-          console.log("🔄 [HTML] Tentando estratégia alternativa...");
-        }
-
-        // ===== ESTRATÉGIA 3: INICIALIZAÇÃO DIRETA =====
-        try {
-          console.log("🚀 [HTML] TENTATIVA 3: Usando catalyst.init()");
-          
-          if (typeof window.catalyst.init === 'function') {
-            window.catalyst.init(CATALYST_CONFIG);
-            
-            console.log("✅ [HTML] catalyst.init() executado!");
-            
-            window.catalystApp = window.catalyst;
-            window.catalystReady = true;
-            
-            console.log("🎉 [HTML] SUCESSO! Catalyst pronto via init()");
-            return;
-            
-          } else {
-            console.warn("⚠️ [HTML] catalyst.init() não existe");
-          }
-          
-        } catch (error) {
-          console.error("❌ [HTML] Erro ao usar catalyst.init():", error);
-        }
-
-        // ===== ESTRATÉGIA 4: ASSUME QUE JÁ ESTÁ PRONTO =====
-        console.warn("⚠️ [HTML] Nenhuma estratégia de inicialização funcionou");
-        console.log("🔄 [HTML] Assumindo que o Catalyst está pronto para uso direto...");
+        console.log("✅ [HTML] Catalyst encontrado. Tentando initApp...");
         
-        window.catalystApp = window.catalyst;
-        window.catalystReady = true;
-        
-        console.log("💡 [HTML] FALLBACK ATIVADO: Usando Catalyst sem inicialização explícita");
-        console.log("⚠️ [HTML] Algumas funcionalidades podem não funcionar corretamente");
-        console.log("📋 [HTML] Se houver erros, verifique:");
-        console.log("   1. Versão do SDK");
-        console.log("   2. Credenciais do projeto");
-        console.log("   3. Permissões da tabela");
+        try {
+          // CORREÇÃO: Removemos is_local: true para conectar na nuvem real
+          cat.initApp({
+            project_id: "28308000000011085", 
+            zaid: "50037517394",
+            // is_local: true <--- ISSO ESTAVA QUEBRANDO O .table()
+          });
+          
+          console.log("✅ [HTML] catalyst.initApp() executado com sucesso!");
+          console.log("✅ [HTML] Catalyst conectado à Nuvem Zoho.");
+          
+          // Sinaliza que está pronto
+          window.catalystReady = true;
+          
+        } catch (error) {
+          console.error("❌ [HTML] Erro no initApp:", error);
+        }
       });
-
-      // ===== LOG DE DIAGNÓSTICO (APÓS 2 SEGUNDOS) =====
-      setTimeout(() => {
-        console.log("📊 [HTML] ===== DIAGNÓSTICO FINAL =====");
-        console.log("   window.catalyst:", !!window.catalyst);
-        console.log("   window.catalystApp:", !!window.catalystApp);
-        console.log("   window.catalystReady:", window.catalystReady);
-        console.log("==========================================");
-      }, 2000);
     </script>
   </head>
 
