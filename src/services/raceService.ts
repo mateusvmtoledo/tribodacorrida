@@ -36,42 +36,40 @@ const getTable = async () => {
   console.log("🔍 [Table] Propriedades:", Object.keys(catalyst));
   console.log("🔍 [Table] Protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(catalyst)));
 
-  // Tenta diferentes sintaxes do SDK
   let table;
   
   try {
-    // SDK 4.x - Sintaxe 1: catalyst.datastore().table()
-    if (typeof catalyst.datastore === 'function') {
-      console.log("🔧 [Table] Tentando catalyst.datastore().table()...");
-      const datastore = catalyst.datastore();
-      console.log("🔍 [Table] Datastore obtido:", datastore);
-      console.log("🔍 [Table] Métodos do datastore:", Object.keys(datastore));
-      
-      if (typeof datastore.table === 'function') {
-        table = datastore.table(TABLE_IDENTIFIER);
-      }
+    // SDK 4.5.0 - catalyst.table é um getter que retorna a API
+    console.log("🔧 [Table] Acessando catalyst.table...");
+    const tableAPI = catalyst.table;
+    
+    console.log("🔍 [Table] tableAPI obtido:", tableAPI);
+    console.log("🔍 [Table] Tipo:", typeof tableAPI);
+    
+    if (!tableAPI) {
+      throw new Error("catalyst.table retornou undefined");
     }
-    // SDK 4.x - Sintaxe 2: catalyst.datastore.table()
-    else if (catalyst.datastore && typeof catalyst.datastore.table === 'function') {
-      console.log("🔧 [Table] Tentando catalyst.datastore.table()...");
-      table = catalyst.datastore.table(TABLE_IDENTIFIER);
+    
+    // Agora chama o método correto
+    if (typeof tableAPI.getInstance === 'function') {
+      console.log("🔧 [Table] Usando tableAPI.getInstance().getTable()...");
+      const instance = tableAPI.getInstance();
+      console.log("🔍 [Table] Instance:", instance);
+      table = instance.getTable(TABLE_IDENTIFIER);
     }
-    // SDK 4.x - Sintaxe 3: catalyst.table()
-    else if (typeof catalyst.table === 'function') {
-      console.log("🔧 [Table] Tentando catalyst.table()...");
-      table = catalyst.table(TABLE_IDENTIFIER);
+    else if (typeof tableAPI === 'function') {
+      console.log("🔧 [Table] Usando tableAPI() como função...");
+      table = tableAPI(TABLE_IDENTIFIER);
     }
-    // SDK antigo - Sintaxe 4: ZCObject
-    else if (catalyst.ZCObject) {
-      console.log("🔧 [Table] Tentando ZCObject.getInstance()...");
-      const zcObject = catalyst.ZCObject.getInstance();
-      table = zcObject.getTable(TABLE_IDENTIFIER);
+    else if (typeof tableAPI.getTable === 'function') {
+      console.log("🔧 [Table] Usando tableAPI.getTable()...");
+      table = tableAPI.getTable(TABLE_IDENTIFIER);
     }
     else {
-      console.error("❌ [Table] NENHUMA API ENCONTRADA!");
-      console.error("💡 [Table] Tente chamar no console: window.catalyst");
-      console.error("💡 [Table] E veja o que tem disponível");
-      throw new Error("API de tabela não disponível");
+      console.error("❌ [Table] API não identificada!");
+      console.error("💡 [Table] Métodos do tableAPI:", Object.keys(tableAPI));
+      console.error("💡 [Table] Protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(tableAPI)));
+      throw new Error("Método de acesso à tabela não identificado");
     }
     
     console.log("✅ [Table] Tabela obtida:", table);
