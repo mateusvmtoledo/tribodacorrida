@@ -1,92 +1,94 @@
 import { Race } from '@/lib/races-data';
 
 // 🔴 CONFIGURAÇÃO BLINDADA COM SEUS DADOS
-const TABLE_IDENTIFIER = '28308000000011134'; // ID da Tabela oficial
+const TABLE_IDENTIFIER = '28308000000011134';
 const CREDENTIALS = {
   projectId: "28308000000011085",
   zaid: "50037517394"
 };
 
 // ============================================================================
-// 1. FUNÇÃO DE INICIALIZAÇÃO (O Coração da Correção)
+// 1. INICIALIZAÇÃO FORÇADA DO CATALYST
 // ============================================================================
-const getCatalyst = () => {
+let isInitialized = false;
+
+const initializeCatalyst = async () => {
+  if (isInitialized) return;
+
   const w = window as any;
-  let cat = w.catalyst;
-
-  // Se o objeto 'catalyst' nem existe no window, o script do index.html falhou
-  if (!cat) {
-    throw new Error("⛔ SDK do Catalyst não encontrado. Verifique se o AdBlock está bloqueando.");
+  
+  if (!w.catalyst) {
+    throw new Error("⛔ SDK do Catalyst não encontrado no window");
   }
 
-  // TENTA CORRIGIR O ERRO "DATASTORE UNDEFINED"
-  // Se o datastore não estiver pronto, forçamos a inicialização agora.
-  if (!cat.datastore) {
-    console.warn("⚠️ Catalyst detectado mas sem Data Store. Forçando inicialização manual...");
+  try {
+    // FORÇA A INICIALIZAÇÃO EXPLÍCITA
+    if (typeof w.catalyst.auth?.init === 'function') {
+      await w.catalyst.auth.init(CREDENTIALS);
+      console.log("✅ Catalyst Auth inicializado");
+    }
+
+    // Aguarda um momento para o datastore ficar disponível
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    if (!w.catalyst.datastore) {
+      throw new Error("❌ Datastore ainda não disponível após init");
+    }
+
+    isInitialized = true;
+    console.log("✅ Catalyst Datastore pronto!");
     
-    try {
-      if (cat.sdk && typeof cat.sdk.init === 'function') {
-        cat.sdk.init(CREDENTIALS);
-        // Atualiza a referência global após o init
-        cat = w.catalyst; 
-      }
-    } catch (e) {
-      console.error("Erro ao tentar init manual:", e);
-    }
+  } catch (error) {
+    console.error("❌ Erro na inicialização:", error);
+    throw error;
   }
+};
 
-  // Fallback de compatibilidade (para versões diferentes do SDK)
-  if (!cat.datastore) {
-    if (cat.sdk && cat.sdk.datastore) {
-       cat.datastore = cat.sdk.datastore;
-    }
+const getCatalyst = async () => {
+  await initializeCatalyst();
+  
+  const w = window as any;
+  if (!w.catalyst?.datastore) {
+    throw new Error("Banco de dados não inicializado. Recarregue a página.");
   }
-
-  // Verificação Final
-  if (!cat.datastore) {
-    console.error("❌ ERRO FATAL: Catalyst existe mas o banco de dados falhou.", cat);
-    throw new Error("Falha crítica: Banco de Dados não inicializado. Recarregue a página.");
-  }
-
-  return cat;
+  
+  return w.catalyst;
 };
 
 // ============================================================================
-// 2. BUSCAR CORRIDAS (Leitura pelo ID)
+// 2. BUSCAR CORRIDAS
 // ============================================================================
 export const fetchRacesFromDb = async (): Promise<Race[]> => {
   try {
-    const catalyst = getCatalyst();
+    const catalyst = await getCatalyst();
     const table = catalyst.datastore.table(TABLE_IDENTIFIER);
     
-    // Usamos getRows() em vez de ZQL para garantir que o ID da tabela funcione
     const rows = await table.getRows();
 
     if (!rows || rows.length === 0) return [];
 
-    // Filtramos e mapeamos os dados
     return rows
       .map((row: any) => {
-        // O Catalyst pode retornar os dados dentro de uma chave com o nome da tabela ou direto
         const data = row[Object.keys(row)[0]] || row; 
         return mapRowToRace(data);
       })
-      .filter((r: Race) => r.approved); // Só retorna as aprovadas
+      .filter((r: Race) => r.approved);
 
   } catch (error) {
-    console.error("Erro ao buscar corridas:", error);
+    console.error("❌ Erro ao buscar corridas:", error);
     return [];
   }
 };
 
 // ============================================================================
-// 3. SALVAR CORRIDA (Escrita pelo ID)
+// 3. SALVAR CORRIDA (COM INICIALIZAÇÃO GARANTIDA)
 // ============================================================================
 export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
   console.log("💾 [RaceService] Iniciando gravação na tabela:", TABLE_IDENTIFIER);
 
   try {
-    const catalyst = getCatalyst();
+    // GARANTE QUE O CATALYST ESTÁ INICIALIZADO
+    const catalyst = await getCatalyst();
     const table = catalyst.datastore.table(TABLE_IDENTIFIER);
 
     const rowData = {
@@ -99,7 +101,7 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
       email: raceData.email || "",
       description: raceData.description || "",
       link: raceData.link,
-      approved: false, // Sempre pendente
+      approved: false,
       hasResults: false,
       image: raceData.image || "",
       type: raceData.type || 'rua',
@@ -107,8 +109,9 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
       location: raceData.location || `${raceData.city}, ${raceData.state}`
     };
 
-    const insertPromise = table.addRow(rowData);
-    const result = await insertPromise;
+    console.log("📤 Dados preparados:", rowData);
+    
+    const result = await table.addRow(rowData);
     
     console.log("✅ Sucesso! ID:", result.ROWID);
     return result;
@@ -119,21 +122,25 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
   }
 };
 
-// Funções Admin
+// ============================================================================
+// 4. FUNÇÕES ADMIN
+// ============================================================================
 export const updateRaceInDb = async (id: string, data: Partial<Race>) => {
-  const catalyst = getCatalyst();
+  const catalyst = await getCatalyst();
   const table = catalyst.datastore.table(TABLE_IDENTIFIER);
   const updateData = { ROWID: id, ...data };
   return await table.updateRow(updateData);
 };
 
 export const deleteRaceFromDb = async (id: string) => {
-  const catalyst = getCatalyst();
+  const catalyst = await getCatalyst();
   const table = catalyst.datastore.table(TABLE_IDENTIFIER);
   return await table.deleteRow(id);
 };
 
-// Helper para mapear os dados do banco para o nosso formato
+// ============================================================================
+// 5. HELPER DE MAPEAMENTO
+// ============================================================================
 function mapRowToRace(data: any): Race {
   return {
     id: data.ROWID,
