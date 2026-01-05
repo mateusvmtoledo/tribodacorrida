@@ -16,17 +16,46 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@TriboDaCorrida" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-<script src="https://static.zohocdn.com/catalyst/sdk/js/4.5.0/catalystWebSDK.js"></script>
 
-<script>
-  var catalyst = catalyst || {};
-  catalyst.init = function() {
-      catalyst.sdk.init({
-          projectId: "28308000000011085", 
-          zaid: "50037517394" 
+    <!-- 1️⃣ CARREGA O SDK DO CATALYST -->
+    <script src="https://static.zohocdn.com/catalyst/sdk/js/4.5.0/catalystWebSDK.js"></script>
+
+    <!-- 2️⃣ INICIALIZA O CATALYST APÓS O CARREGAMENTO -->
+    <script>
+      console.log("🔧 [HTML] Script de inicialização carregado");
+      
+      // Aguarda o DOM estar pronto
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log("📄 [HTML] DOM carregado");
+        console.log("🔍 [HTML] Verificando window.catalyst:", window.catalyst);
+        
+        if (!window.catalyst) {
+          console.error("❌ [HTML] ERRO: window.catalyst não encontrado!");
+          console.error("💡 [HTML] Verifique se o script do Catalyst carregou corretamente");
+          return;
+        }
+        
+        console.log("✅ [HTML] window.catalyst encontrado:", window.catalyst);
+        
+        try {
+          console.log("🚀 [HTML] Iniciando catalyst.auth.init()...");
+          
+          // INICIALIZAÇÃO CORRETA DO SDK 4.5.0
+          window.catalyst.auth.init({
+            projectId: "28308000000011085",
+            zaid: "50037517394"
+          });
+          
+          console.log("✅ [HTML] Catalyst inicializado com sucesso!");
+          
+          // Sinaliza que está pronto
+          window.catalystReady = true;
+          
+        } catch (error) {
+          console.error("❌ [HTML] Erro ao inicializar:", error);
+        }
       });
-  };
-</script>
+    </script>
   </head>
 
   <body>
