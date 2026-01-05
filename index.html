@@ -17,73 +17,134 @@
     <meta name="twitter:site" content="@TriboDaCorrida" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
-    <!-- 1️⃣ CARREGA O SDK DO CATALYST -->
+    <!-- 1️⃣ CARREGA O SDK DO CATALYST (v4.5.0) -->
     <script src="https://static.zohocdn.com/catalyst/sdk/js/4.5.0/catalystWebSDK.js"></script>
 
-    <!-- 2️⃣ INICIALIZA O CATALYST APÓS O CARREGAMENTO -->
+    <!-- 2️⃣ INICIALIZAÇÃO ROBUSTA DO CATALYST -->
     <script>
       console.log("🔧 [HTML] Script de inicialização carregado");
       
+      // Credenciais do projeto
+      const CATALYST_CONFIG = {
+        projectId: "28308000000011085",
+        zaid: "50037517394"
+      };
+
       // Aguarda o DOM estar pronto
       document.addEventListener('DOMContentLoaded', function() {
         console.log("📄 [HTML] DOM carregado");
         console.log("🔍 [HTML] Verificando window.catalyst:", window.catalyst);
         
+        // ===== VERIFICAÇÃO INICIAL =====
         if (!window.catalyst) {
-          console.error("❌ [HTML] ERRO: window.catalyst não encontrado!");
-          console.error("💡 [HTML] Verifique se o script do Catalyst carregou corretamente");
+          console.error("❌ [HTML] ERRO CRÍTICO: SDK do Catalyst não carregado!");
+          console.error("💡 [HTML] Verifique:");
+          console.error("   1. Se o script está carregando (AdBlock pode bloquear)");
+          console.error("   2. Se a URL está correta");
+          console.error("   3. Se há erros de CORS");
           return;
         }
         
         console.log("✅ [HTML] window.catalyst encontrado:", window.catalyst);
         console.log("🔍 [HTML] Propriedades disponíveis:", Object.keys(window.catalyst));
-        
+        console.log("🔍 [HTML] Métodos do protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(window.catalyst)));
+
+        // ===== ESTRATÉGIA 1: SDK 4.5.0 MODERNO (initApp) =====
         try {
-          // SDK 4.5.0 - Precisa criar uma instância com credenciais!
-          console.log("🚀 [HTML] Criando CatalystApp com credenciais...");
+          console.log("🚀 [HTML] TENTATIVA 1: Usando initApp() [SDK 4.5.0]");
           
-          // Cria o objeto de credenciais
-          const app = window.catalyst.initialize({
-            projectId: "28308000000011085",
-            zaid: "50037517394"
-          });
-          
-          console.log("✅ [HTML] CatalystApp inicializado:", app);
-          
-          // Armazena a instância globalmente para uso posterior
-          window.catalystApp = app;
-          window.catalystReady = true;
-          
-          console.log("✅ [HTML] Tudo pronto para uso!");
+          if (typeof window.catalyst.initApp === 'function') {
+            const app = window.catalyst.initApp(CATALYST_CONFIG);
+            
+            console.log("✅ [HTML] initApp() executado com sucesso!");
+            console.log("📦 [HTML] App retornado:", app);
+            
+            // Armazena globalmente
+            window.catalystApp = app;
+            window.catalystReady = true;
+            
+            console.log("🎉 [HTML] SUCESSO! Catalyst pronto via initApp()");
+            return; // Sucesso, sai da função
+            
+          } else {
+            console.warn("⚠️ [HTML] initApp() não existe, tentando próxima estratégia...");
+          }
           
         } catch (error) {
-          console.error("❌ [HTML] Erro ao inicializar:", error);
+          console.error("❌ [HTML] Erro ao usar initApp():", error);
+          console.log("🔄 [HTML] Tentando estratégia alternativa...");
+        }
+
+        // ===== ESTRATÉGIA 2: INICIALIZAÇÃO VIA AUTH =====
+        try {
+          console.log("🚀 [HTML] TENTATIVA 2: Usando auth.init()");
           
-          // FALLBACK: Tenta a sintaxe antiga
-          try {
-            console.log("🔄 [HTML] Tentando sintaxe alternativa...");
+          if (window.catalyst.auth && typeof window.catalyst.auth.init === 'function') {
+            window.catalyst.auth.init(CATALYST_CONFIG);
             
-            const credentials = {
-              projectId: "28308000000011085",
-              zaid: "50037517394"
-            };
-            
-            if (window.catalyst.init) {
-              window.catalyst.init(credentials);
-            } else if (window.catalyst.auth && window.catalyst.auth.init) {
-              window.catalyst.auth.init(credentials);
-            }
+            console.log("✅ [HTML] auth.init() executado!");
             
             window.catalystApp = window.catalyst;
             window.catalystReady = true;
-            console.log("✅ [HTML] Inicializado via fallback!");
             
-          } catch (fallbackError) {
-            console.error("❌ [HTML] Falha total:", fallbackError);
-            window.catalystReady = true; // Marca como pronto mesmo assim
+            console.log("🎉 [HTML] SUCESSO! Catalyst pronto via auth.init()");
+            return;
+            
+          } else {
+            console.warn("⚠️ [HTML] auth.init() não existe, tentando próxima estratégia...");
           }
+          
+        } catch (error) {
+          console.error("❌ [HTML] Erro ao usar auth.init():", error);
+          console.log("🔄 [HTML] Tentando estratégia alternativa...");
         }
+
+        // ===== ESTRATÉGIA 3: INICIALIZAÇÃO DIRETA =====
+        try {
+          console.log("🚀 [HTML] TENTATIVA 3: Usando catalyst.init()");
+          
+          if (typeof window.catalyst.init === 'function') {
+            window.catalyst.init(CATALYST_CONFIG);
+            
+            console.log("✅ [HTML] catalyst.init() executado!");
+            
+            window.catalystApp = window.catalyst;
+            window.catalystReady = true;
+            
+            console.log("🎉 [HTML] SUCESSO! Catalyst pronto via init()");
+            return;
+            
+          } else {
+            console.warn("⚠️ [HTML] catalyst.init() não existe");
+          }
+          
+        } catch (error) {
+          console.error("❌ [HTML] Erro ao usar catalyst.init():", error);
+        }
+
+        // ===== ESTRATÉGIA 4: ASSUME QUE JÁ ESTÁ PRONTO =====
+        console.warn("⚠️ [HTML] Nenhuma estratégia de inicialização funcionou");
+        console.log("🔄 [HTML] Assumindo que o Catalyst está pronto para uso direto...");
+        
+        window.catalystApp = window.catalyst;
+        window.catalystReady = true;
+        
+        console.log("💡 [HTML] FALLBACK ATIVADO: Usando Catalyst sem inicialização explícita");
+        console.log("⚠️ [HTML] Algumas funcionalidades podem não funcionar corretamente");
+        console.log("📋 [HTML] Se houver erros, verifique:");
+        console.log("   1. Versão do SDK");
+        console.log("   2. Credenciais do projeto");
+        console.log("   3. Permissões da tabela");
       });
+
+      // ===== LOG DE DIAGNÓSTICO (APÓS 2 SEGUNDOS) =====
+      setTimeout(() => {
+        console.log("📊 [HTML] ===== DIAGNÓSTICO FINAL =====");
+        console.log("   window.catalyst:", !!window.catalyst);
+        console.log("   window.catalystApp:", !!window.catalystApp);
+        console.log("   window.catalystReady:", window.catalystReady);
+        console.log("==========================================");
+      }, 2000);
     </script>
   </head>
 
