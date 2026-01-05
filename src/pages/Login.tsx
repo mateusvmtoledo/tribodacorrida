@@ -1,33 +1,49 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Acessa o objeto global do Catalyst
     const cat = (window as any).catalyst;
     
     if (cat && cat.auth) {
-      // 1. Verifica se já está logado
-      cat.auth.isUserAuthenticated().then((result: any) => {
-        if (result.content) {
-          navigate('/torredecontrole');
-        } else {
-          // 2. SE NÃO ESTIVER LOGADO: Desenha o formulário
-          // O primeiro argumento "login-container" tem de ser IGUAL ao id da div lá em baixo
+      // Função auxiliar para desenhar o login
+      const renderLoginForm = () => {
+        try {
           cat.auth.signIn("login-container", {
-             // Configurações opcionais
              is_customize_forgot_password: true,
              forgot_password_id: "forgot-password-container"
           });
+        } catch (e) {
+          console.error("Erro ao desenhar iframe:", e);
         }
-      }).catch((err: any) => {
-        console.error("Erro no Catalyst Auth:", err);
-      });
-    } else {
-      console.error("Catalyst SDK não encontrado no window.");
+      };
+
+      cat.auth.isUserAuthenticated()
+        .then((result: any) => {
+          if (result.content) {
+            navigate('/torredecontrole');
+          } else {
+            renderLoginForm();
+          }
+        })
+        .catch((err: any) => {
+          // SE DER ERRO (Net Issue), TENTA MOSTRAR O LOGIN MESMO ASSIM
+          console.error("Erro Auth (Tentando renderizar forçado):", err);
+          
+          if (err?.code === 700) {
+             toast({ 
+               title: "Alerta de Conexão", 
+               description: "Verifique se o localhost está autorizado no Console do Catalyst ou desligue o AdBlock.",
+               variant: "destructive"
+             });
+          }
+          renderLoginForm();
+        });
     }
   }, [navigate]);
 
@@ -39,11 +55,7 @@ const Login = () => {
           <p className="text-sm text-muted-foreground">Tribo da Corrida</p>
         </CardHeader>
         <CardContent>
-          {/* O Catalyst vai injetar o iframe AQUI dentro */}
-          {/* O ID aqui deve bater com o do useEffect */}
           <div id="login-container" className="min-h-[350px]"></div>
-          
-          {/* Container para "Esqueci a senha" */}
           <div id="forgot-password-container" className="mt-4"></div>
         </CardContent>
       </Card>

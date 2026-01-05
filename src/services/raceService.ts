@@ -1,119 +1,95 @@
-import { initCatalyst, getTable } from '@/lib/catalyst';
 import { Race } from '@/lib/races-data';
 
-const TABLE_NAME = 'Corridas';
-
-// Mapeia do Banco (Zoho) para o Site
-// Adicionei o campo 'approved' no mapeamento
-const mapFromDb = (row: any): Race => ({
-  id: row.ROWID, 
-  name: row.name,
-  type: 'rua', // Se tiver coluna type no banco, mude para row.type
-  distance: row.distance,
-  date: row.dateRun,
-  state: row.state,
-  city: row.city,
-  price: row.price ? parseFloat(row.price) : 0,
-  image: row.image || 'https://images.unsplash.com/photo-1552674605-5d28c4a11843?q=80',
-  description: row.description || '', 
-  location: `${row.city}, ${row.state}`,
-  organizer: row.organizer,
-  isFree: row.is_free || false,
-  link: row.link,
-  hasResults: row.has_results || false,
-  photosLink: row.photos_link || '',
-  // Usamos um cast boolean simples caso venha como string/null
-  approved: row.approved === true || row.approved === 'true', 
-  originalPrice: undefined,
-  hasCoupon: false
-});
+// Função auxiliar para pegar o Catalyst do navegador
+const getCatalyst = () => {
+  const cat = (window as any).catalyst;
+  if (!cat) {
+    throw new Error("SDK do Catalyst não inicializado.");
+  }
+  return cat;
+};
 
 export const fetchRacesFromDb = async (): Promise<Race[]> => {
   try {
-    initCatalyst();
-    const table = getTable(TABLE_NAME);
-    if (!table) return [];
-
-    const rows = await table.getAllRows();
-    const data = Array.isArray(rows) ? rows : (rows as any).content || [];
+    const catalyst = getCatalyst();
     
-    return data.map(mapFromDb);
+    // ZQL é a linguagem de consulta do Zoho (parecido com SQL)
+    // Buscamos apenas as corridas aprovadas para exibir na lista pública
+    const query = "SELECT * FROM Corridas WHERE approved = true"; 
+    
+    const queryPromise = catalyst.ZQL.executeQuery(query);
+    const rows = await queryPromise;
+
+    if (!rows || rows.length === 0) return [];
+
+    // Mapeia o resultado do banco (Corridas) para o nosso formato (Race)
+    return rows.map((row: any) => {
+      const data = row.Corridas; // O Catalyst devolve um objeto com o nome da tabela
+      return {
+        id: data.ROWID,
+        name: data.name,
+        date: data.date,
+        city: data.city,
+        state: data.state,
+        distances: data.distances,
+        organizer: data.organizer,
+        image: data.image || "https://images.unsplash.com/photo-1532443603122-ad161ff16c90?w=800&q=80",
+        link: data.link, // <--- GARANTINDO QUE O LINK VENHA
+        approved: data.approved,
+        hasResults: data.hasResults || false
+      };
+    });
   } catch (error) {
-    console.error("Erro ao buscar no Catalyst:", error);
+    console.error("Erro ao buscar corridas:", error);
     return [];
   }
 };
 
-export const createRaceInDb = async (raceData: Partial<Race>) => {
+export const addRaceToDb = async (race: Omit<Race, 'id'>) => {
   try {
-    initCatalyst();
-    const table = getTable(TABLE_NAME);
-    if (!table) throw new Error("Falha ao conectar no Data Store");
+    const catalyst = getCatalyst();
+    const table = catalyst.datastore.table('Corridas');
 
+    console.log("Tentando salvar corrida:", race);
+
+    // Cria o objeto EXATO que o banco espera
     const rowData = {
-      name: raceData.name,
-      dateRun: raceData.date,
-      city: raceData.city,
-      state: raceData.state,
-      distance: raceData.distance,
-      organizer: raceData.organizer,
-      link: raceData.link,
-      description: raceData.description,
-      is_free: raceData.isFree || false,
-      price: raceData.price || 0,
-      image: raceData.image,
-      has_results: false,
-      photos_link: '',
-      approved: false, // <--- Cria como pendente por padrão
-      email: raceData.email || ''
+      name: race.name,
+      date: race.date,
+      city: race.city,
+      state: race.state,
+      distances: race.distances,
+      organizer: race.organizer,
+      link: race.link, // <--- AQUI ESTÁ A CHAVE: link minúsculo
+      approved: false // Toda nova corrida entra como não aprovada
     };
 
-    const insertedRow = await table.insertRow(rowData);
-    return mapFromDb(insertedRow);
-  } catch (error) {
-    console.error("Erro ao inserir no Catalyst:", error);
+    const insertPromise = table.addRow(rowData);
+    const row = await insertPromise;
+    console.log("Corrida salva com sucesso:", row);
+    return row;
+  } catch (error: any) {
+    console.error("Erro detalhado do Catalyst:", error);
+    // Lança o erro para a tela de Cadastro mostrar o alerta
     throw error;
   }
 };
 
-// NOVA FUNÇÃO: Atualizar Corrida (Aprovar, Editar Links, etc)
-export const updateRaceInDb = async (id: string, updates: Partial<Race>) => {
-  try {
-    initCatalyst();
-    const table = getTable(TABLE_NAME);
-    if (!table) throw new Error("Erro conexão tabela");
-
-    // Mapear campos do frontend para as colunas do banco
-    const rowData: any = {
-      ROWID: id, // Obrigatório para o update
-    };
-
-    if (updates.name) rowData.name = updates.name;
-    if (updates.date) rowData.dateRun = updates.date;
-    if (updates.hasResults !== undefined) rowData.has_results = updates.hasResults;
-    if (updates.photosLink !== undefined) rowData.photos_link = updates.photosLink;
-    if (updates.approved !== undefined) rowData.approved = updates.approved;
-    // Adicione outros campos se quiser permitir editar tudo
-
-    const updatedRow = await table.updateRow(rowData);
-    return mapFromDb(updatedRow);
-  } catch (error) {
-    console.error("Erro ao atualizar:", error);
-    throw error;
-  }
+// Funções para a Torre de Controle (Update/Delete)
+export const updateRaceInDb = async (id: string, data: Partial<Race>) => {
+  const catalyst = getCatalyst();
+  const table = catalyst.datastore.table('Corridas');
+  
+  const updateData = {
+    ROWID: id,
+    ...data
+  };
+  
+  return await table.updateRow(updateData);
 };
 
-// NOVA FUNÇÃO: Deletar Corrida
 export const deleteRaceFromDb = async (id: string) => {
-  try {
-    initCatalyst();
-    const table = getTable(TABLE_NAME);
-    if (!table) throw new Error("Erro conexão tabela");
-
-    await table.deleteRow(id);
-    return true;
-  } catch (error) {
-    console.error("Erro ao deletar:", error);
-    throw error;
-  }
+  const catalyst = getCatalyst();
+  const table = catalyst.datastore.table('Corridas');
+  return await table.deleteRow(id);
 };
