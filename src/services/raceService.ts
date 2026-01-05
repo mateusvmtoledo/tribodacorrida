@@ -1,96 +1,109 @@
 import { Race } from '@/lib/races-data';
 
-// 🔴 CONFIGURAÇÃO BLINDADA COM SEUS DADOS
+// 🔴 CONFIGURAÇÃO
 const TABLE_IDENTIFIER = '28308000000011134';
-const CREDENTIALS = {
-  projectId: "28308000000011085",
-  zaid: "50037517394"
-};
 
 // ============================================================================
-// 1. INICIALIZAÇÃO FORÇADA DO CATALYST
+// 1. OBTER O CATALYST WEB SDK (Sintaxe Antiga)
 // ============================================================================
-let isInitialized = false;
-
-const initializeCatalyst = async () => {
-  if (isInitialized) return;
-
+const getCatalyst = () => {
+  console.log("🔍 [Catalyst] Verificando SDK no window...");
+  
   const w = window as any;
   
   if (!w.catalyst) {
-    throw new Error("⛔ SDK do Catalyst não encontrado no window");
-  }
-
-  try {
-    // FORÇA A INICIALIZAÇÃO EXPLÍCITA
-    if (typeof w.catalyst.auth?.init === 'function') {
-      await w.catalyst.auth.init(CREDENTIALS);
-      console.log("✅ Catalyst Auth inicializado");
-    }
-
-    // Aguarda um momento para o datastore ficar disponível
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    if (!w.catalyst.datastore) {
-      throw new Error("❌ Datastore ainda não disponível após init");
-    }
-
-    isInitialized = true;
-    console.log("✅ Catalyst Datastore pronto!");
-    
-  } catch (error) {
-    console.error("❌ Erro na inicialização:", error);
-    throw error;
-  }
-};
-
-const getCatalyst = async () => {
-  await initializeCatalyst();
-  
-  const w = window as any;
-  if (!w.catalyst?.datastore) {
-    throw new Error("Banco de dados não inicializado. Recarregue a página.");
+    console.error("❌ [Catalyst] SDK não encontrado no window!");
+    throw new Error("SDK do Catalyst não carregado");
   }
   
+  console.log("✅ [Catalyst] SDK encontrado:", w.catalyst);
+  
+  // Verifica se o ZCObject existe (sintaxe antiga do Web SDK)
+  if (!w.catalyst.ZCObject) {
+    console.error("❌ [Catalyst] ZCObject não encontrado. Versão do SDK incompatível?");
+    throw new Error("ZCObject não disponível");
+  }
+  
+  console.log("✅ [Catalyst] ZCObject disponível");
   return w.catalyst;
 };
 
 // ============================================================================
-// 2. BUSCAR CORRIDAS
+// 2. OBTER TABELA (Sintaxe Web SDK Antiga)
+// ============================================================================
+const getTable = () => {
+  console.log("📋 [Table] Obtendo instância da tabela:", TABLE_IDENTIFIER);
+  
+  const catalyst = getCatalyst();
+  
+  try {
+    // SINTAXE CORRETA DO WEB SDK ANTIGO
+    const zcObject = catalyst.ZCObject.getInstance();
+    console.log("✅ [Table] ZCObject.getInstance() OK");
+    
+    const table = zcObject.getTable(TABLE_IDENTIFIER);
+    console.log("✅ [Table] Tabela obtida:", table);
+    
+    return table;
+    
+  } catch (error) {
+    console.error("❌ [Table] Erro ao obter tabela:", error);
+    throw error;
+  }
+};
+
+// ============================================================================
+// 3. BUSCAR CORRIDAS
 // ============================================================================
 export const fetchRacesFromDb = async (): Promise<Race[]> => {
+  console.log("📥 [Fetch] Iniciando busca de corridas...");
+  
   try {
-    const catalyst = await getCatalyst();
-    const table = catalyst.datastore.table(TABLE_IDENTIFIER);
+    const table = getTable();
+    console.log("📊 [Fetch] Chamando getAllRows()...");
     
-    const rows = await table.getRows();
+    // Web SDK antigo usa getAllRows()
+    const rows = await table.getAllRows();
+    console.log(`✅ [Fetch] ${rows.length} linhas retornadas`);
+    
+    if (!rows || rows.length === 0) {
+      console.warn("⚠️ [Fetch] Nenhuma linha encontrada");
+      return [];
+    }
 
-    if (!rows || rows.length === 0) return [];
-
-    return rows
+    const races = rows
       .map((row: any) => {
-        const data = row[Object.keys(row)[0]] || row; 
-        return mapRowToRace(data);
+        console.log("🔄 [Fetch] Processando linha:", row);
+        return mapRowToRace(row);
       })
       .filter((r: Race) => r.approved);
 
+    console.log(`✅ [Fetch] ${races.length} corridas aprovadas retornadas`);
+    return races;
+
   } catch (error) {
-    console.error("❌ Erro ao buscar corridas:", error);
+    console.error("❌ [Fetch] Erro:", error);
     return [];
   }
 };
 
 // ============================================================================
-// 3. SALVAR CORRIDA (COM INICIALIZAÇÃO GARANTIDA)
+// 4. SALVAR CORRIDA (COM LOGS DETALHADOS)
 // ============================================================================
 export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
-  console.log("💾 [RaceService] Iniciando gravação na tabela:", TABLE_IDENTIFIER);
+  console.log("💾 [Save] ========================================");
+  console.log("💾 [Save] Iniciando gravação...");
+  console.log("💾 [Save] Tabela:", TABLE_IDENTIFIER);
+  console.log("💾 [Save] Dados recebidos:", raceData);
 
   try {
-    // GARANTE QUE O CATALYST ESTÁ INICIALIZADO
-    const catalyst = await getCatalyst();
-    const table = catalyst.datastore.table(TABLE_IDENTIFIER);
+    // 1. Obter tabela
+    console.log("📋 [Save] Etapa 1: Obtendo tabela...");
+    const table = getTable();
+    console.log("✅ [Save] Tabela obtida:", table);
 
+    // 2. Preparar dados
+    console.log("📦 [Save] Etapa 2: Preparando rowData...");
     const rowData = {
       name: raceData.name,
       date: raceData.date,
@@ -109,40 +122,74 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
       location: raceData.location || `${raceData.city}, ${raceData.state}`
     };
 
-    console.log("📤 Dados preparados:", rowData);
-    
+    console.log("✅ [Save] rowData preparado:", rowData);
+
+    // 3. Inserir
+    console.log("📤 [Save] Etapa 3: Chamando table.addRow()...");
     const result = await table.addRow(rowData);
     
-    console.log("✅ Sucesso! ID:", result.ROWID);
+    console.log("✅ [Save] Sucesso! Resposta:", result);
+    console.log("💾 [Save] ========================================");
+    
     return result;
 
   } catch (error: any) {
-    console.error("❌ Erro ao salvar:", error);
+    console.error("❌ [Save] ========================================");
+    console.error("❌ [Save] ERRO CRÍTICO!");
+    console.error("❌ [Save] Tipo:", error?.constructor?.name);
+    console.error("❌ [Save] Mensagem:", error?.message);
+    console.error("❌ [Save] Stack:", error?.stack);
+    console.error("❌ [Save] Objeto completo:", error);
+    console.error("❌ [Save] ========================================");
     throw error;
   }
 };
 
 // ============================================================================
-// 4. FUNÇÕES ADMIN
+// 5. FUNÇÕES ADMIN
 // ============================================================================
 export const updateRaceInDb = async (id: string, data: Partial<Race>) => {
-  const catalyst = await getCatalyst();
-  const table = catalyst.datastore.table(TABLE_IDENTIFIER);
-  const updateData = { ROWID: id, ...data };
-  return await table.updateRow(updateData);
+  console.log("✏️ [Update] Atualizando corrida:", id);
+  
+  try {
+    const table = getTable();
+    const updateData = { ROWID: id, ...data };
+    
+    console.log("📤 [Update] Dados:", updateData);
+    const result = await table.updateRow(updateData);
+    
+    console.log("✅ [Update] Sucesso:", result);
+    return result;
+    
+  } catch (error) {
+    console.error("❌ [Update] Erro:", error);
+    throw error;
+  }
 };
 
 export const deleteRaceFromDb = async (id: string) => {
-  const catalyst = await getCatalyst();
-  const table = catalyst.datastore.table(TABLE_IDENTIFIER);
-  return await table.deleteRow(id);
+  console.log("🗑️ [Delete] Deletando corrida:", id);
+  
+  try {
+    const table = getTable();
+    const result = await table.deleteRow(id);
+    
+    console.log("✅ [Delete] Sucesso:", result);
+    return result;
+    
+  } catch (error) {
+    console.error("❌ [Delete] Erro:", error);
+    throw error;
+  }
 };
 
 // ============================================================================
-// 5. HELPER DE MAPEAMENTO
+// 6. HELPER DE MAPEAMENTO
 // ============================================================================
 function mapRowToRace(data: any): Race {
-  return {
+  console.log("🔄 [Map] Mapeando dados:", data);
+  
+  const mapped = {
     id: data.ROWID,
     name: data.name,
     date: data.date,
@@ -160,4 +207,7 @@ function mapRowToRace(data: any): Race {
     price: data.price || 0,
     location: data.location || `${data.city}, ${data.state}`
   };
+  
+  console.log("✅ [Map] Resultado:", mapped);
+  return mapped;
 }
