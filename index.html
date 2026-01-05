@@ -54,16 +54,21 @@
           console.log("🚀 [HTML] TENTATIVA 1: Usando initApp() [SDK 4.5.0]");
           
           if (typeof window.catalyst.initApp === 'function') {
-            const app = window.catalyst.initApp(CATALYST_CONFIG);
+            // initApp() NÃO retorna nada, ele inicializa o próprio objeto
+            window.catalyst.initApp(CATALYST_CONFIG);
             
             console.log("✅ [HTML] initApp() executado com sucesso!");
-            console.log("📦 [HTML] App retornado:", app);
             
-            // Armazena globalmente
-            window.catalystApp = app;
-            window.catalystReady = true;
+            // Aguarda 300ms para o SDK ficar pronto
+            setTimeout(() => {
+              // O app É o próprio catalyst após a inicialização
+              window.catalystApp = window.catalyst;
+              window.catalystReady = true;
+              
+              console.log("📦 [HTML] Catalyst inicializado:", window.catalyst);
+              console.log("🎉 [HTML] SUCESSO! Catalyst pronto via initApp()");
+            }, 300);
             
-            console.log("🎉 [HTML] SUCESSO! Catalyst pronto via initApp()");
             return; // Sucesso, sai da função
             
           } else {
