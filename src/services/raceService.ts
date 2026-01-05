@@ -1,5 +1,5 @@
 // ============================================================================
-// raceService.ts - VERSÃO COMPLETA CSV + CATALYST
+// raceService.ts - VERSÃO COMPLETA CSV + CATALYST (COM CONEXÃO)
 // ============================================================================
 
 import { Race } from '@/lib/races-data';
@@ -7,6 +7,8 @@ import { Race } from '@/lib/races-data';
 const TABLE_IDENTIFIER = '28308000000011134';
 const PROJECT_ID = "28308000000011085";
 const ZAID = "50037517394";
+// Nome da conexão que você criou no Catalyst
+const CONNECTION_NAME = 'tribocorrida';
 
 // ============================================================================
 // 1. INICIALIZAÇÃO DO CATALYST (SDK 4.5.0)
@@ -142,7 +144,8 @@ export const fetchRacesFromDb = async (): Promise<Race[]> => {
     const table = await getTable();
     
     console.log("📊 [Fetch] Chamando getRows()...");
-    const result = await table.getRows();
+    // Usando a conexão para garantir permissão de leitura
+    const result = await table.getRows({ connection: CONNECTION_NAME });
     
     console.log("✅ [Fetch] Resposta:", result);
     
@@ -204,15 +207,16 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
 
     console.log("📦 [Save] Dados preparados:", rowData);
 
-    // Tenta diferentes métodos de inserção
+    // Tenta diferentes métodos de inserção usando a conexão tribocorrida
     let result;
+    const options = { connection: CONNECTION_NAME };
     
     if (typeof table.insertRow === 'function') {
-      console.log("📤 [Save] Chamando table.insertRow()...");
-      result = await table.insertRow(rowData);
+      console.log(`📤 [Save] Chamando table.insertRow() com conexão ${CONNECTION_NAME}...`);
+      result = await table.insertRow(rowData, options);
     } else if (typeof table.addRow === 'function') {
-      console.log("📤 [Save] Chamando table.addRow()...");
-      result = await table.addRow(rowData);
+      console.log(`📤 [Save] Chamando table.addRow() com conexão ${CONNECTION_NAME}...`);
+      result = await table.addRow(rowData, options);
     } else {
       throw new Error("Nenhum método de inserção disponível");
     }
@@ -245,7 +249,8 @@ export const updateRaceInDb = async (id: string, data: Partial<Race>) => {
     const updateData = { ROWID: id, ...data };
     
     console.log("📤 [Update] Dados:", updateData);
-    const result = await table.updateRow(updateData);
+    // Adicionado o uso da conexão para autorizar a edição
+    const result = await table.updateRow(updateData, { connection: CONNECTION_NAME });
     
     console.log("✅ [Update] Sucesso:", result);
     return result;
@@ -261,7 +266,8 @@ export const deleteRaceFromDb = async (id: string) => {
   
   try {
     const table = await getTable();
-    const result = await table.deleteRow(id);
+    // Adicionado o uso da conexão para autorizar a exclusão
+    const result = await table.deleteRow(id, { connection: CONNECTION_NAME });
     
     console.log("✅ [Delete] Sucesso:", result);
     return result;
