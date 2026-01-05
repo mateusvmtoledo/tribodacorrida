@@ -6,12 +6,12 @@ import path from 'path'
 export default defineConfig({
   plugins: [
     react(),
-    basicSsl() // <--- O Plugin entra aqui
+    basicSsl() // Este plugin já cuida de tudo!
   ],
   server: {
     port: 8080,
-    https: true, // <--- Ativa o HTTPS
     host: true,
+    // https: true <--- APAGUE ESTA LINHA, ela não é necessária com o plugin
   },
   resolve: {
     alias: {
