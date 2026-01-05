@@ -1,147 +1,154 @@
+// ============================================================================
+// raceService.ts - VERSÃO COMPLETA CSV + CATALYST
+// ============================================================================
+
 import { Race } from '@/lib/races-data';
 
-// 🔴 CONFIGURAÇÃO
 const TABLE_IDENTIFIER = '28308000000011134';
+const PROJECT_ID = "28308000000011085";
+const ZAID = "50037517394";
 
 // ============================================================================
-// 1. AGUARDAR O CATALYST ESTAR PRONTO (Inicializado no HTML)
+// 1. INICIALIZAÇÃO DO CATALYST (SDK 4.5.0)
 // ============================================================================
-const waitForCatalyst = async (): Promise<any> => {
-  console.log("⏳ [Wait] Aguardando Catalyst estar pronto...");
-  
+let catalystApp: any = null;
+let isInitialized = false;
+
+const initCatalyst = async () => {
+  if (isInitialized && catalystApp) {
+    console.log("✅ [Catalyst] Já inicializado");
+    return catalystApp;
+  }
+
+  console.log("🚀 [Catalyst] Iniciando SDK 4.5.0...");
+
   const w = window as any;
   
-  // Aguarda até o catalystApp estar disponível (max 10 segundos)
-  for (let i = 0; i < 100; i++) {
-    if (w.catalystApp && w.catalystReady) {
-      console.log("✅ [Wait] CatalystApp pronto após", i * 100, "ms");
-      console.log("🔍 [Wait] CatalystApp:", w.catalystApp);
-      return w.catalystApp;
-    }
-    await new Promise(resolve => setTimeout(resolve, 100));
+  if (!w.catalyst) {
+    throw new Error("❌ SDK do Catalyst não carregado no window");
   }
-  
-  throw new Error("Timeout: CatalystApp não inicializou em 10 segundos");
+
+  try {
+    // SDK 4.5.0: Precisa criar credenciais e inicializar
+    console.log("🔧 [Catalyst] Criando credenciais...");
+    
+    // Cria as credenciais
+    const credentials = {
+      projectId: PROJECT_ID,
+      zaid: ZAID
+    };
+
+    // Inicializa o Catalyst com as credenciais
+    console.log("🔧 [Catalyst] Chamando w.catalyst.auth.init()...");
+    
+    // Tenta inicializar (pode variar dependendo da versão exata)
+    if (w.catalyst.auth && typeof w.catalyst.auth.init === 'function') {
+      await w.catalyst.auth.init(credentials);
+      catalystApp = w.catalyst;
+    } else if (typeof w.catalyst.init === 'function') {
+      catalystApp = w.catalyst.init(credentials);
+    } else {
+      // Fallback: usa direto
+      catalystApp = w.catalyst;
+    }
+
+    // Aguarda um pouco para garantir que está pronto
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    isInitialized = true;
+    console.log("✅ [Catalyst] Inicializado com sucesso!");
+    console.log("📦 [Catalyst] App:", catalystApp);
+
+    return catalystApp;
+
+  } catch (error) {
+    console.error("❌ [Catalyst] Erro na inicialização:", error);
+    throw error;
+  }
 };
 
 // ============================================================================
 // 2. OBTER TABELA
 // ============================================================================
 const getTable = async () => {
-  console.log("📋 [Table] ========================================");
   console.log("📋 [Table] Obtendo tabela:", TABLE_IDENTIFIER);
 
-  const app = await waitForCatalyst();
-  
-  console.log("🔍 [Table] App disponível:", app);
-  console.log("🔍 [Table] Propriedades:", Object.keys(app));
-  console.log("🔍 [Table] Protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(app)));
+  const app = await initCatalyst();
 
-  let table;
-  
   try {
-    // SDK 4.5.0 - Usa o app inicializado
-    console.log("🔧 [Table] Acessando app.table...");
-    const tableAPI = app.table;
-    
-    console.log("🔍 [Table] tableAPI obtido:", tableAPI);
-    console.log("🔍 [Table] Tipo:", typeof tableAPI);
-    
-    if (!tableAPI) {
-      throw new Error("app.table retornou undefined");
+    // SDK 4.5.0: Acessa o datastore
+    let table;
+
+    if (app.datastore && typeof app.datastore.table === 'function') {
+      console.log("🔧 [Table] Usando app.datastore.table()");
+      table = app.datastore.table(TABLE_IDENTIFIER);
+    } else if (typeof app.table === 'function') {
+      console.log("🔧 [Table] Usando app.table()");
+      table = app.table(TABLE_IDENTIFIER);
+    } else {
+      throw new Error("Não encontrei um método para acessar a tabela");
     }
-    
-    // Agora chama o método correto
-    if (typeof tableAPI.getInstance === 'function') {
-      console.log("🔧 [Table] Usando tableAPI.getInstance().getTable()...");
-      const instance = tableAPI.getInstance();
-      console.log("🔍 [Table] Instance:", instance);
-      table = instance.getTable(TABLE_IDENTIFIER);
-    }
-    else if (typeof tableAPI === 'function') {
-      console.log("🔧 [Table] Usando tableAPI() como função...");
-      table = tableAPI(TABLE_IDENTIFIER);
-    }
-    else if (typeof tableAPI.getTable === 'function') {
-      console.log("🔧 [Table] Usando tableAPI.getTable()...");
-      table = tableAPI.getTable(TABLE_IDENTIFIER);
-    }
-    else {
-      console.error("❌ [Table] API não identificada!");
-      console.error("💡 [Table] Métodos do tableAPI:", Object.keys(tableAPI));
-      console.error("💡 [Table] Protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(tableAPI)));
-      throw new Error("Método de acesso à tabela não identificado");
-    }
-    
+
     console.log("✅ [Table] Tabela obtida:", table);
-    console.log("📋 [Table] ========================================");
-    
     return table;
-    
+
   } catch (error) {
     console.error("❌ [Table] Erro:", error);
-    console.log("📋 [Table] ========================================");
     throw error;
   }
 };
 
 // ============================================================================
-// 3. BUSCAR CORRIDAS
+// 3. BUSCAR CORRIDAS DO CATALYST (para combinar com CSV)
 // ============================================================================
 export const fetchRacesFromDb = async (): Promise<Race[]> => {
-  console.log("📥 [Fetch] ========================================");
-  console.log("📥 [Fetch] Iniciando busca de corridas...");
+  console.log("📥 [Fetch] Buscando corridas do Catalyst...");
   
   try {
     const table = await getTable();
     
-    console.log("📊 [Fetch] Chamando table.getRows()...");
+    console.log("📊 [Fetch] Chamando getRows()...");
     const result = await table.getRows();
     
     console.log("✅ [Fetch] Resposta:", result);
     
     // Tenta diferentes formatos de resposta
     const rows = result?.data || result?.rows || result || [];
-    console.log(`✅ [Fetch] ${rows.length} linhas encontradas`);
+    console.log(`✅ [Fetch] ${rows.length} linhas no Catalyst`);
     
     if (!rows || rows.length === 0) {
-      console.warn("⚠️ [Fetch] Nenhuma linha retornada");
+      console.warn("⚠️ [Fetch] Nenhuma corrida no Catalyst ainda");
       return [];
     }
 
     const races = rows
       .map((row: any) => {
-        console.log("🔄 [Fetch] Linha:", row);
+        console.log("🔄 [Fetch] Processando:", row);
         return mapRowToRace(row);
       })
       .filter((r: Race) => r.approved);
 
-    console.log(`✅ [Fetch] ${races.length} corridas aprovadas`);
-    console.log("📥 [Fetch] ========================================");
-    
+    console.log(`✅ [Fetch] ${races.length} corridas aprovadas retornadas`);
     return races;
 
   } catch (error) {
-    console.error("❌ [Fetch] Erro:", error);
-    console.log("📥 [Fetch] ========================================");
+    console.error("❌ [Fetch] Erro ao buscar do Catalyst:", error);
+    // Não falha - apenas retorna array vazio se der erro
     return [];
   }
 };
 
 // ============================================================================
-// 4. SALVAR CORRIDA
+// 4. SALVAR NOVA CORRIDA NO CATALYST
 // ============================================================================
 export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
   console.log("💾 [Save] ========================================");
-  console.log("💾 [Save] Iniciando gravação...");
-  console.log("💾 [Save] Tabela:", TABLE_IDENTIFIER);
+  console.log("💾 [Save] Salvando nova corrida...");
   console.log("💾 [Save] Dados:", raceData);
 
   try {
     const table = await getTable();
-    console.log("✅ [Save] Tabela obtida");
-    
-    console.log("🔍 [Save] Métodos da tabela:", Object.keys(table));
+    console.log("✅ [Save] Tabela pronta");
 
     const rowData = {
       name: raceData.name,
@@ -153,7 +160,7 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
       email: raceData.email || "",
       description: raceData.description || "",
       link: raceData.link,
-      approved: false,
+      approved: false, // Sempre pendente no início
       hasResults: false,
       image: raceData.image || "",
       type: raceData.type || 'rua',
@@ -161,35 +168,30 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
       location: raceData.location || `${raceData.city}, ${raceData.state}`
     };
 
-    console.log("📦 [Save] rowData preparado:", rowData);
+    console.log("📦 [Save] Dados preparados:", rowData);
 
     // Tenta diferentes métodos de inserção
     let result;
     
     if (typeof table.insertRow === 'function') {
-      console.log("📤 [Save] Usando table.insertRow()...");
+      console.log("📤 [Save] Chamando table.insertRow()...");
       result = await table.insertRow(rowData);
     } else if (typeof table.addRow === 'function') {
-      console.log("📤 [Save] Usando table.addRow()...");
+      console.log("📤 [Save] Chamando table.addRow()...");
       result = await table.addRow(rowData);
-    } else if (typeof table.create === 'function') {
-      console.log("📤 [Save] Usando table.create()...");
-      result = await table.create(rowData);
     } else {
-      console.error("❌ [Save] Nenhum método de inserção encontrado!");
-      console.error("💡 [Save] Métodos disponíveis:", Object.keys(table));
-      throw new Error("Método de inserção não disponível");
+      throw new Error("Nenhum método de inserção disponível");
     }
     
-    console.log("✅ [Save] Sucesso! Resposta:", result);
-    console.log("🎉 [Save] ID:", result?.ROWID);
+    console.log("✅ [Save] SUCESSO! Resposta:", result);
+    console.log("🎉 [Save] Novo ID:", result?.ROWID);
     console.log("💾 [Save] ========================================");
     
     return result;
 
   } catch (error: any) {
     console.error("❌ [Save] ========================================");
-    console.error("❌ [Save] ERRO!", error);
+    console.error("❌ [Save] ERRO AO SALVAR!");
     console.error("❌ [Save] Tipo:", error?.constructor?.name);
     console.error("❌ [Save] Mensagem:", error?.message);
     console.error("❌ [Save] Stack:", error?.stack);
@@ -237,12 +239,10 @@ export const deleteRaceFromDb = async (id: string) => {
 };
 
 // ============================================================================
-// 6. HELPER
+// 6. HELPER DE MAPEAMENTO
 // ============================================================================
 function mapRowToRace(data: any): Race {
-  console.log("🔄 [Map] Input:", data);
-  
-  const mapped = {
+  return {
     id: data.ROWID,
     name: data.name,
     date: data.date,
@@ -260,7 +260,4 @@ function mapRowToRace(data: any): Race {
     price: data.price || 0,
     location: data.location || `${data.city}, ${data.state}`
   };
-  
-  console.log("✅ [Map] Output:", mapped);
-  return mapped;
 }
