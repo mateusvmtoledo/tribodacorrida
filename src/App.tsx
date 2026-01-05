@@ -6,13 +6,14 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Index from "./pages/Index";
-import Resultados from "./pages/Resultados"; // Página de Busca (agora /corridas)
+import Resultados from "./pages/Resultados"; 
 import RaceDetails from "./pages/RaceDetails";
 import Cadastrar from "./pages/Cadastrar";
 import Contato from "./pages/Contato";
 import NotFound from "./pages/NotFound";
-import EventosPassados from "./pages/EventosPassados"; // Página de Passadas (agora /resultados)
-import TorreDeControle from "./pages/TorreDeControle"; // Novo Import para o Admin
+import EventosPassados from "./pages/EventosPassados"; 
+import TorreDeControle from "./pages/TorreDeControle";
+import Login from "./pages/Login"; // <--- 1. ADICIONE ESTE IMPORT
 
 const queryClient = new QueryClient();
 
@@ -27,16 +28,14 @@ const App = () => (
           <div className="flex-1">
             <Routes>
               <Route path="/" element={<Index />} />
-              {/* MUDANÇA: /resultados vira /corridas */}
               <Route path="/corridas" element={<Resultados />} />
-              {/* MUDANÇA: /historico vira /resultados */}
               <Route path="/resultados" element={<EventosPassados />} />
-              
               <Route path="/corrida/:id" element={<RaceDetails />} />
               <Route path="/cadastrar" element={<Cadastrar />} />
               <Route path="/contato" element={<Contato />} />
 
-              {/* Rota da Torre de Controle (Admin Oculto) */}
+              {/* 2. ADICIONE ESTAS DUAS ROTAS NOVAS: */}
+              <Route path="/login" element={<Login />} />
               <Route path="/torredecontrole" element={<TorreDeControle />} />
               
               <Route path="*" element={<NotFound />} />
