@@ -36,23 +36,27 @@
         }
         
         console.log("✅ [HTML] window.catalyst encontrado:", window.catalyst);
+        console.log("🔍 [HTML] Propriedades disponíveis:", Object.keys(window.catalyst));
         
         try {
-          console.log("🚀 [HTML] Iniciando catalyst.auth.init()...");
+          // SDK 4.5.0 usa catalyst.init() direto, não auth.init()
+          console.log("🚀 [HTML] Chamando catalyst.init()...");
           
-          // INICIALIZAÇÃO CORRETA DO SDK 4.5.0
-          window.catalyst.auth.init({
-            projectId: "28308000000011085",
-            zaid: "50037517394"
-          });
-          
-          console.log("✅ [HTML] Catalyst inicializado com sucesso!");
+          if (typeof window.catalyst.init === 'function') {
+            window.catalyst.init();
+            console.log("✅ [HTML] catalyst.init() chamado!");
+          } else {
+            console.warn("⚠️ [HTML] catalyst.init() não existe, pode já estar inicializado");
+          }
           
           // Sinaliza que está pronto
           window.catalystReady = true;
+          console.log("✅ [HTML] Catalyst marcado como pronto!");
           
         } catch (error) {
           console.error("❌ [HTML] Erro ao inicializar:", error);
+          // Mesmo com erro, marca como pronto para não travar
+          window.catalystReady = true;
         }
       });
     </script>
