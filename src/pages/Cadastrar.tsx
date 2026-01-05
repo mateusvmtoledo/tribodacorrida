@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from '@/hooks/use-toast';
-import { createRaceInDb } from '@/services/raceService';
-import { initCatalyst } from '@/lib/catalyst';
+import { addRaceToDb } from '@/services/raceService';
 
+// Opções de distâncias disponíveis
 const DISTANCES_OPTIONS = [
   { id: "3k", label: "3 km" },
   { id: "5k", label: "5 km" },
@@ -24,15 +24,18 @@ const DISTANCES_OPTIONS = [
   { id: "caminhada", label: "Caminhada" },
 ];
 
+// Schema de validação Zod (Regras do Formulário)
 const formSchema = z.object({
-  eventName: z.string().min(3, "Nome muito curto"),
+  eventName: z.string().min(3, "Nome muito curto (mínimo 3 letras)"),
   dateRun: z.string().refine((val) => !isNaN(Date.parse(val)), "Data inválida"),
   city: z.string().min(2, "Cidade obrigatória"),
-  state: z.string().length(2, "Use sigla (ex: SP)"),
+  state: z.string().length(2, "Use sigla de 2 letras (ex: SP)"),
   organizer: z.string().min(2, "Organizador obrigatório"),
   email: z.string().email("E-mail inválido").optional().or(z.literal('')),
-  // ATENÇÃO: Link agora é obrigatório conforme seu Schema do banco
-  link: z.string().url("Link inválido (deve começar com http:// ou https://)"),
+  
+  // O link deve ser uma URL válida para o banco aceitar
+  link: z.string().url("Link inválido. Deve começar com http:// ou https://"),
+  
   description: z.string().min(10, "Descreva o evento (mínimo 10 caracteres)"),
   distances: z.array(z.string()).refine((value) => value.length > 0, {
     message: "Selecione pelo menos uma distância.",
@@ -45,6 +48,7 @@ const Cadastrar = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Inicialização do Hook Form com valores padrão
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -61,36 +65,51 @@ const Cadastrar = () => {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("📝 [Formulário] Validação OK. Enviando:", values);
     setIsLoading(true);
+    
     try {
-      initCatalyst(); 
-
-      // Converte array ["5k", "10k"] para string "5k, 10k"
       const distanceString = values.distances.join(', ');
 
-      await createRaceInDb({
+      // AQUI ESTAVA O ERRO: Faltavam campos obrigatórios da Interface Race.
+      // Agora enviamos valores padrão para satisfazer o TypeScript.
+      await addRaceToDb({
         name: values.eventName,
-        date: values.dateRun, // Vai para a coluna dateRun
+        date: values.dateRun,
         city: values.city,
         state: values.state.toUpperCase(),
         organizer: values.organizer,
+        email: values.email || "", // Garante string vazia se for undefined
         description: values.description,
         link: values.link,
-        distance: distanceString,
-        isFree: false,
+        distances: distanceString,
+        
+        // --- CORREÇÃO: Campos obrigatórios preenchidos automaticamente ---
+        type: 'rua', // Padrão 'rua' (Street Run) já que não perguntamos no form
+        price: 0,    // Padrão 0 (Preço sob consulta/não informado)
+        location: `${values.city}, ${values.state.toUpperCase()}`, // Monta a Location
+        // ---------------------------------------------------------------
+
+        image: "", 
+        approved: false,
+        hasResults: false
       });
 
+      console.log("🎉 [Formulário] Sucesso!");
       setIsSubmitted(true);
-      toast({ title: "Sucesso!", description: "Evento cadastrado no Catalyst." });
+      toast({ 
+        title: "Sucesso!", 
+        description: "Evento enviado para a Torre de Controle.",
+        className: "bg-green-600 text-white"
+      });
       
-      // Espera 3s e volta para Home
       setTimeout(() => navigate('/'), 3000);
 
     } catch (error) {
-      console.error(error);
+      console.error("❌ [Formulário] Erro:", error);
       toast({
         title: "Erro ao salvar",
-        description: "Verifique se você preencheu o Link (obrigatório) e a conexão.",
+        description: "Erro de conexão ou dados inválidos.",
         variant: "destructive"
       });
     } finally {
@@ -98,13 +117,15 @@ const Cadastrar = () => {
     }
   }
 
+  // Tela de Sucesso
   if (isSubmitted) {
     return (
       <main className="pt-32 pb-20 min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-lg mx-auto p-6">
+        <div className="text-center max-w-lg mx-auto p-6 bg-white rounded-xl shadow-lg border">
           <CheckCircle className="h-20 w-20 text-green-500 mx-auto mb-4 animate-bounce" />
-          <h2 className="text-3xl font-bold mb-4">Cadastro Enviado!</h2>
-          <Button onClick={() => navigate('/')} variant="outline">Voltar</Button>
+          <h2 className="text-3xl font-bold mb-4 text-gray-800">Cadastro Enviado!</h2>
+          <p className="text-gray-600 mb-6">Sua corrida foi enviada para análise e em breve estará no calendário.</p>
+          <Button onClick={() => navigate('/')} variant="outline">Voltar para Home</Button>
         </div>
       </main>
     );
@@ -118,10 +139,11 @@ const Cadastrar = () => {
           <p className="text-muted-foreground">Preencha os dados oficiais do evento.</p>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm bg-white">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
+              {/* Linha 1 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -139,7 +161,7 @@ const Cadastrar = () => {
                   name="dateRun"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Data (Dia do Evento)</FormLabel>
+                      <FormLabel>Data</FormLabel>
                       <FormControl><Input type="date" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -147,6 +169,7 @@ const Cadastrar = () => {
                 />
               </div>
 
+              {/* Linha 2 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -179,6 +202,7 @@ const Cadastrar = () => {
                 />
               </div>
 
+              {/* Linha 3 - Distâncias */}
               <FormField
                 control={form.control}
                 name="distances"
@@ -186,7 +210,7 @@ const Cadastrar = () => {
                   <FormItem>
                     <div className="mb-4">
                       <FormLabel>Distâncias</FormLabel>
-                      <FormDescription>Selecione as modalidades.</FormDescription>
+                      <FormDescription>Selecione ao menos uma.</FormDescription>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {DISTANCES_OPTIONS.map((item) => (
@@ -210,7 +234,7 @@ const Cadastrar = () => {
                                     }}
                                   />
                                 </FormControl>
-                                <FormLabel className="font-normal cursor-pointer w-full">
+                                <FormLabel className="font-normal cursor-pointer w-full text-sm">
                                   {item.label}
                                 </FormLabel>
                               </FormItem>
@@ -224,6 +248,7 @@ const Cadastrar = () => {
                 )}
               />
 
+              {/* Linha 4 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -232,10 +257,10 @@ const Cadastrar = () => {
                     <FormItem>
                       <FormLabel>Organizador</FormLabel>
                       <FormControl>
-                         <div className="relative">
-                          <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input className="pl-9" {...field} />
-                        </div>
+                          <div className="relative">
+                           <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                           <Input className="pl-9" {...field} />
+                         </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -259,6 +284,7 @@ const Cadastrar = () => {
                 />
               </div>
 
+              {/* Linha 5 - Link */}
                <FormField
                   control={form.control}
                   name="link"
@@ -271,11 +297,13 @@ const Cadastrar = () => {
                           <Input className="pl-9" placeholder="https://..." {...field} />
                         </div>
                       </FormControl>
+                      <FormDescription>Cole o link completo do site oficial.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
+              {/* Linha 6 - Descrição */}
               <FormField
                 control={form.control}
                 name="description"
@@ -289,7 +317,12 @@ const Cadastrar = () => {
               />
 
               <Button type="submit" className="w-full btn-gradient font-bold text-lg h-12" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Enviar Cadastro'}
+                {isLoading ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando dados...
+                    </>
+                ) : 'Enviar Cadastro'}
               </Button>
             </form>
           </Form>

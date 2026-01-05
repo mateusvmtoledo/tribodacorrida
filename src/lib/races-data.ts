@@ -25,12 +25,23 @@ export interface Race {
   location: string;
   organizer: string;
   isFree?: boolean;
+  
+  // Link agora é obrigatório no Banco, mas opcional aqui para não quebrar legados
   link?: string;
+  
+  // ADICIONADO: O campo que estava faltando
+  email?: string; 
+  
   coupons?: Coupon[];
   hasCoupon?: boolean;
+  
   // Novos campos para Resultados
   photosLink?: string;
-  hasResults?: boolean; // Controle do Admin
+  hasResults?: boolean; 
+
+  // CAMPOS DO CATALYST
+  approved: boolean; 
+  distances?: string; // String para compatibilidade com o banco
 }
 
 export const raceTypes: { value: RaceType; label: string }[] = [
@@ -290,10 +301,7 @@ function parseCSVToRaces(): Race[] {
     const hasCoupon = hash % 7 === 0;
     const isFree = hash % 33 === 0;
     
-    // Simulação para o "hasResults" e "photosLink"
-    // Vamos supor que 90% das provas têm resultados
     const hasResults = hash % 10 !== 0; 
-    // Vamos supor que 30% das provas têm fotos no Fotop (mock)
     const hasPhotos = hash % 3 === 0;
 
     const race: Race = {
@@ -301,6 +309,7 @@ function parseCSVToRaces(): Race[] {
       name: finalName,
       type,
       distance: distance || undefined,
+      distances: distance, // Para compatibilidade
       date,
       state,
       city: city || citiesByState[state]?.[0] || 'Capital',
@@ -312,6 +321,7 @@ function parseCSVToRaces(): Race[] {
       organizer: organizer || 'Organizador Local',
       isFree,
       link: link || undefined,
+      email: undefined, // Email opcional
       hasCoupon,
       coupons: hasCoupon ? [{
         code: `TRIBO${hash % 100}`,
@@ -321,6 +331,9 @@ function parseCSVToRaces(): Race[] {
       // Novos campos preenchidos
       hasResults: hasResults,
       photosLink: hasPhotos ? 'https://fotop.com.br' : undefined,
+      
+      // Corridas do CSV já nascem aprovadas
+      approved: true
     };
     
     races.push(race);
