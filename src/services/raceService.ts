@@ -7,6 +7,7 @@ import { Race } from '@/lib/races-data';
 const TABLE_IDENTIFIER = '28308000000011134';
 const PROJECT_ID = "28308000000011085";
 const ZAID = "50037517394";
+const CONNECTION_NAME = 'tribocorrida'; // Adicionado para resolver o erro 401
 
 // ============================================================================
 // 1. INICIALIZAÇÃO DO CATALYST (SDK 4.5.0)
@@ -142,7 +143,7 @@ export const fetchRacesFromDb = async (): Promise<Race[]> => {
     const table = await getTable();
     
     console.log("📊 [Fetch] Chamando getRows()...");
-    const result = await table.getRows();
+    const result = await table.getRows({ connection: CONNECTION_NAME });
     
     console.log("✅ [Fetch] Resposta:", result);
     
@@ -186,16 +187,16 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
 
     const rowData = {
       name: raceData.name,
-      date: raceData.date,
+      dateRun: raceData.date,       // Ajustado conforme ZCQL
       city: raceData.city,
       state: raceData.state,
-      distances: raceData.distances,
+      distance: raceData.distances,  // Ajustado conforme ZCQL
       organizer: raceData.organizer || "Não informado",
       email: raceData.email || "",
       description: raceData.description || "",
       link: raceData.link,
       approved: false, // Sempre pendente no início
-      hasResults: false,
+      has_results: false,           // Ajustado conforme ZCQL
       image: raceData.image || "",
       type: raceData.type || 'rua',
       price: raceData.price || 0,
@@ -206,13 +207,14 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
 
     // Tenta diferentes métodos de inserção
     let result;
+    const options = { connection: CONNECTION_NAME };
     
     if (typeof table.insertRow === 'function') {
       console.log("📤 [Save] Chamando table.insertRow()...");
-      result = await table.insertRow(rowData);
+      result = await table.insertRow(rowData, options);
     } else if (typeof table.addRow === 'function') {
       console.log("📤 [Save] Chamando table.addRow()...");
-      result = await table.addRow(rowData);
+      result = await table.addRow(rowData, options);
     } else {
       throw new Error("Nenhum método de inserção disponível");
     }
@@ -245,7 +247,7 @@ export const updateRaceInDb = async (id: string, data: Partial<Race>) => {
     const updateData = { ROWID: id, ...data };
     
     console.log("📤 [Update] Dados:", updateData);
-    const result = await table.updateRow(updateData);
+    const result = await table.updateRow(updateData, { connection: CONNECTION_NAME });
     
     console.log("✅ [Update] Sucesso:", result);
     return result;
@@ -261,7 +263,7 @@ export const deleteRaceFromDb = async (id: string) => {
   
   try {
     const table = await getTable();
-    const result = await table.deleteRow(id);
+    const result = await table.deleteRow(id, { connection: CONNECTION_NAME });
     
     console.log("✅ [Delete] Sucesso:", result);
     return result;
@@ -276,22 +278,23 @@ export const deleteRaceFromDb = async (id: string) => {
 // 6. HELPER DE MAPEAMENTO
 // ============================================================================
 function mapRowToRace(data: any): Race {
+  const record = data.Corridas || data; // Ajuste para o formato retornado pelo ZCQL
   return {
-    id: data.ROWID,
-    name: data.name,
-    date: data.date,
-    city: data.city,
-    state: data.state,
-    distances: data.distances || "",
-    image: data.image || "",
-    link: data.link,
-    approved: data.approved,
-    organizer: data.organizer,
-    description: data.description,
-    email: data.email,
-    hasResults: data.hasResults || false,
-    type: data.type || 'rua',
-    price: data.price || 0,
-    location: data.location || `${data.city}, ${data.state}`
+    id: record.ROWID,
+    name: record.name,
+    date: record.dateRun || record.date,
+    city: record.city,
+    state: record.state,
+    distances: record.distance || record.distances || "",
+    image: record.image || "",
+    link: record.link,
+    approved: record.approved,
+    organizer: record.organizer,
+    description: record.description,
+    email: record.email,
+    hasResults: record.has_results || record.hasResults || false,
+    type: record.type || 'rua',
+    price: record.price || 0,
+    location: record.location || `${record.city}, ${record.state}`
   };
 }
