@@ -39,24 +39,49 @@
         console.log("🔍 [HTML] Propriedades disponíveis:", Object.keys(window.catalyst));
         
         try {
-          // SDK 4.5.0 usa catalyst.init() direto, não auth.init()
-          console.log("🚀 [HTML] Chamando catalyst.init()...");
+          // SDK 4.5.0 - Precisa criar uma instância com credenciais!
+          console.log("🚀 [HTML] Criando CatalystApp com credenciais...");
           
-          if (typeof window.catalyst.init === 'function') {
-            window.catalyst.init();
-            console.log("✅ [HTML] catalyst.init() chamado!");
-          } else {
-            console.warn("⚠️ [HTML] catalyst.init() não existe, pode já estar inicializado");
-          }
+          // Cria o objeto de credenciais
+          const app = window.catalyst.initialize({
+            projectId: "28308000000011085",
+            zaid: "50037517394"
+          });
           
-          // Sinaliza que está pronto
+          console.log("✅ [HTML] CatalystApp inicializado:", app);
+          
+          // Armazena a instância globalmente para uso posterior
+          window.catalystApp = app;
           window.catalystReady = true;
-          console.log("✅ [HTML] Catalyst marcado como pronto!");
+          
+          console.log("✅ [HTML] Tudo pronto para uso!");
           
         } catch (error) {
           console.error("❌ [HTML] Erro ao inicializar:", error);
-          // Mesmo com erro, marca como pronto para não travar
-          window.catalystReady = true;
+          
+          // FALLBACK: Tenta a sintaxe antiga
+          try {
+            console.log("🔄 [HTML] Tentando sintaxe alternativa...");
+            
+            const credentials = {
+              projectId: "28308000000011085",
+              zaid: "50037517394"
+            };
+            
+            if (window.catalyst.init) {
+              window.catalyst.init(credentials);
+            } else if (window.catalyst.auth && window.catalyst.auth.init) {
+              window.catalyst.auth.init(credentials);
+            }
+            
+            window.catalystApp = window.catalyst;
+            window.catalystReady = true;
+            console.log("✅ [HTML] Inicializado via fallback!");
+            
+          } catch (fallbackError) {
+            console.error("❌ [HTML] Falha total:", fallbackError);
+            window.catalystReady = true; // Marca como pronto mesmo assim
+          }
         }
       });
     </script>

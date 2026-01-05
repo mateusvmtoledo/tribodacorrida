@@ -11,16 +11,17 @@ const waitForCatalyst = async (): Promise<any> => {
   
   const w = window as any;
   
-  // Aguarda até o catalyst estar disponível (max 10 segundos)
+  // Aguarda até o catalystApp estar disponível (max 10 segundos)
   for (let i = 0; i < 100; i++) {
-    if (w.catalyst && w.catalystReady) {
-      console.log("✅ [Wait] Catalyst pronto após", i * 100, "ms");
-      return w.catalyst;
+    if (w.catalystApp && w.catalystReady) {
+      console.log("✅ [Wait] CatalystApp pronto após", i * 100, "ms");
+      console.log("🔍 [Wait] CatalystApp:", w.catalystApp);
+      return w.catalystApp;
     }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   
-  throw new Error("Timeout: Catalyst não inicializou em 10 segundos");
+  throw new Error("Timeout: CatalystApp não inicializou em 10 segundos");
 };
 
 // ============================================================================
@@ -30,24 +31,24 @@ const getTable = async () => {
   console.log("📋 [Table] ========================================");
   console.log("📋 [Table] Obtendo tabela:", TABLE_IDENTIFIER);
 
-  const catalyst = await waitForCatalyst();
+  const app = await waitForCatalyst();
   
-  console.log("🔍 [Table] Catalyst disponível:", catalyst);
-  console.log("🔍 [Table] Propriedades:", Object.keys(catalyst));
-  console.log("🔍 [Table] Protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(catalyst)));
+  console.log("🔍 [Table] App disponível:", app);
+  console.log("🔍 [Table] Propriedades:", Object.keys(app));
+  console.log("🔍 [Table] Protótipo:", Object.getOwnPropertyNames(Object.getPrototypeOf(app)));
 
   let table;
   
   try {
-    // SDK 4.5.0 - catalyst.table é um getter que retorna a API
-    console.log("🔧 [Table] Acessando catalyst.table...");
-    const tableAPI = catalyst.table;
+    // SDK 4.5.0 - Usa o app inicializado
+    console.log("🔧 [Table] Acessando app.table...");
+    const tableAPI = app.table;
     
     console.log("🔍 [Table] tableAPI obtido:", tableAPI);
     console.log("🔍 [Table] Tipo:", typeof tableAPI);
     
     if (!tableAPI) {
-      throw new Error("catalyst.table retornou undefined");
+      throw new Error("app.table retornou undefined");
     }
     
     // Agora chama o método correto
