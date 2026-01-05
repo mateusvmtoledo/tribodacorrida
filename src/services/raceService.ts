@@ -1,5 +1,5 @@
 // ============================================================================
-// raceService.ts - VERSÃO COMPLETA CSV + CATALYST
+// raceService.ts - VERSÃO RESTAURADA (SEM CONEXÃO FORÇADA)
 // ============================================================================
 
 import { Race } from '@/lib/races-data';
@@ -7,7 +7,6 @@ import { Race } from '@/lib/races-data';
 const TABLE_IDENTIFIER = '28308000000011134';
 const PROJECT_ID = "28308000000011085";
 const ZAID = "50037517394";
-const CONNECTION_NAME = 'tribocorrida'; // Adicionado para resolver o erro 401
 
 // ============================================================================
 // 1. INICIALIZAÇÃO DO CATALYST (SDK 4.5.0)
@@ -143,7 +142,7 @@ export const fetchRacesFromDb = async (): Promise<Race[]> => {
     const table = await getTable();
     
     console.log("📊 [Fetch] Chamando getRows()...");
-    const result = await table.getRows({ connection: CONNECTION_NAME });
+    const result = await table.getRows();
     
     console.log("✅ [Fetch] Resposta:", result);
     
@@ -187,16 +186,16 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
 
     const rowData = {
       name: raceData.name,
-      dateRun: raceData.date,       // Ajustado conforme ZCQL
+      dateRun: raceData.date,       // Corrigido conforme ZCQL
       city: raceData.city,
       state: raceData.state,
-      distance: raceData.distances,  // Ajustado conforme ZCQL
+      distance: raceData.distances,  // Corrigido conforme ZCQL
       organizer: raceData.organizer || "Não informado",
       email: raceData.email || "",
       description: raceData.description || "",
       link: raceData.link,
       approved: false, // Sempre pendente no início
-      has_results: false,           // Ajustado conforme ZCQL
+      has_results: false,           // Corrigido conforme ZCQL
       image: raceData.image || "",
       type: raceData.type || 'rua',
       price: raceData.price || 0,
@@ -207,14 +206,13 @@ export const addRaceToDb = async (raceData: Omit<Race, 'id'>) => {
 
     // Tenta diferentes métodos de inserção
     let result;
-    const options = { connection: CONNECTION_NAME };
     
     if (typeof table.insertRow === 'function') {
       console.log("📤 [Save] Chamando table.insertRow()...");
-      result = await table.insertRow(rowData, options);
+      result = await table.insertRow(rowData);
     } else if (typeof table.addRow === 'function') {
       console.log("📤 [Save] Chamando table.addRow()...");
-      result = await table.addRow(rowData, options);
+      result = await table.addRow(rowData);
     } else {
       throw new Error("Nenhum método de inserção disponível");
     }
@@ -247,7 +245,7 @@ export const updateRaceInDb = async (id: string, data: Partial<Race>) => {
     const updateData = { ROWID: id, ...data };
     
     console.log("📤 [Update] Dados:", updateData);
-    const result = await table.updateRow(updateData, { connection: CONNECTION_NAME });
+    const result = await table.updateRow(updateData);
     
     console.log("✅ [Update] Sucesso:", result);
     return result;
@@ -263,7 +261,7 @@ export const deleteRaceFromDb = async (id: string) => {
   
   try {
     const table = await getTable();
-    const result = await table.deleteRow(id, { connection: CONNECTION_NAME });
+    const result = await table.deleteRow(id);
     
     console.log("✅ [Delete] Sucesso:", result);
     return result;
@@ -278,7 +276,7 @@ export const deleteRaceFromDb = async (id: string) => {
 // 6. HELPER DE MAPEAMENTO
 // ============================================================================
 function mapRowToRace(data: any): Race {
-  const record = data.Corridas || data; // Ajuste para o formato retornado pelo ZCQL
+  const record = data.Corridas || data;
   return {
     id: record.ROWID,
     name: record.name,
